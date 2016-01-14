@@ -1,0 +1,92 @@
+# Blender MTL File: 'None'
+# Material Count: 6
+
+newmtl Beardmat
+Ns 200.000000
+Ka 0.040000 0.040000 0.040000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+map_Bump D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Beard_Normal.png
+map_Kd D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Beard_Diffuse.png
+map_Ks D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Beard_Specular.png
+map_Ns D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Beard_Gloss.png
+map_d D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Beard_Opacity.png
+
+newmtl Bodymat
+Ns 200.000000
+Ka 0.040000 0.040000 0.040000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+map_Bump D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Body_Normal.png
+map_Kd D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Body_Diffuse.png
+map_Ks D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Body_Specular.png
+map_Ns D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Body_Gloss.png
+map_d D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Body_Opacity.png
+
+newmtl Bottommat
+Ns 200.000000
+Ka 0.040000 0.040000 0.040000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+map_Bump D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Bottom_Normal.png
+map_Kd D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Bottom_Diffuse.png
+map_Ks D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Bottom_Specular.png
+map_Ns D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Bottom_Gloss.png
+map_d D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Bottom_Opacity.png
+
+newmtl Hairmat
+Ns 200.000000
+Ka 0.040000 0.040000 0.040000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+map_Bump D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Hair_Normal.png
+map_Kd D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Hair_Diffuse.png
+map_Ks D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Hair_Specular.png
+map_Ns D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Hair_Gloss.png
+map_d D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Hair_Opacity.png
+
+newmtl Moustachemat
+Ns 200.000000
+Ka 0.040000 0.040000 0.040000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+map_Bump D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Moustache_Normal.png
+map_Kd D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Moustache_Diffuse.png
+map_Ks D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Moustache_Specular.png
+map_Ns D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Moustache_Gloss.png
+map_d D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Moustache_Opacity.png
+
+newmtl Shoesmat
+Ns 200.000000
+Ka 0.040000 0.040000 0.040000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+map_Bump D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Shoes_Normal.png
+map_Kd D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Shoes_Diffuse.png
+map_Ks D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Shoes_Specular.png
+map_Ns D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Shoes_Gloss.png
+map_d D:\\study\\Github\\GodGame\\자료들\\In_Progress\\temp_skin_6891_140729082701696_1312264554.fbm\\GodModel_Shoes_Opacity.png
