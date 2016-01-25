@@ -145,11 +145,13 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 	std::wstring meshMatLib;					//String to hold our obj material library filename
 
 												//Arrays to store our model's information
+	std::vector<DWORD> mtlIndex;
 	std::vector<DWORD> indices;
 	std::vector<XMFLOAT3> vertPos;
 	std::vector<XMFLOAT3> vertNorm;
 	std::vector<XMFLOAT2> vertTexCoord;
 	std::vector<std::wstring> meshMaterials;
+	std::vector<std::wstring> fileNames;
 
 	//Vertex definition indices
 	std::vector<int> vertPosIndex;
@@ -542,6 +544,7 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 										fileIn >> meshMaterialsTemp; //Get next type (string)
 
 										meshMaterials.push_back(meshMaterialsTemp);
+										mtlIndex.push_back(indices.size());
 									}
 								}
 							}
@@ -588,295 +591,300 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 
 	//Close the obj file, and open the mtl file
 	fileIn.close();
-	//fileIn.open(meshMatLib.c_str());
+	fileIn.open(meshMatLib.c_str());
 
-	//std::wstring lastStringRead;
-	//int matCount = material.size();	//total materials
+	std::wstring lastStringRead;
+	int matCount = material.size();	//total materials
 
-	//								//kdset - If our diffuse color was not set, we can use the ambient color (which is usually the same)
-	//								//If the diffuse color WAS set, then we don't need to set our diffuse color to ambient
-	//bool kdset = false;
+									//kdset - If our diffuse color was not set, we can use the ambient color (which is usually the same)
+									//If the diffuse color WAS set, then we don't need to set our diffuse color to ambient
+	bool kdset = false;
 
-	//if (fileIn)
-	//{
-	//	while (fileIn)
-	//	{
-	//		checkChar = fileIn.get();	//Get next char
+	if (fileIn)
+	{
+		while (fileIn)
+		{
+			checkChar = fileIn.get();	//Get next char
 
-	//		switch (checkChar)
-	//		{
-	//			//Check for comment
-	//		case '#':
-	//			checkChar = fileIn.get();
-	//			while (checkChar != '\n')
-	//				checkChar = fileIn.get();
-	//			break;
+			switch (checkChar)
+			{
+				//Check for comment
+			case '#':
+				checkChar = fileIn.get();
+				while (checkChar != '\n')
+					checkChar = fileIn.get();
+				break;
 
-	//			//Set diffuse color
-	//		case 'K':
-	//			checkChar = fileIn.get();
-	//			if (checkChar == 'd')	//Diffuse Color
-	//			{
-	//				checkChar = fileIn.get();	//remove space
+				//Set diffuse color
+			case 'K':
+				checkChar = fileIn.get();
+				if (checkChar == 'd')	//Diffuse Color
+				{
+					checkChar = fileIn.get();	//remove space
 
-	//				fileIn >> material[matCount - 1].difColor.x;
-	//				fileIn >> material[matCount - 1].difColor.y;
-	//				fileIn >> material[matCount - 1].difColor.z;
+					fileIn >> material[matCount - 1].difColor.x;
+					fileIn >> material[matCount - 1].difColor.y;
+					fileIn >> material[matCount - 1].difColor.z;
 
-	//				kdset = true;
-	//			}
+					kdset = true;
+				}
 
-	//			//Ambient Color (We'll store it in diffuse if there isn't a diffuse already)
-	//			if (checkChar == 'a')
-	//			{
-	//				checkChar = fileIn.get();	//remove space
-	//				if (!kdset)
-	//				{
-	//					fileIn >> material[matCount - 1].difColor.x;
-	//					fileIn >> material[matCount - 1].difColor.y;
-	//					fileIn >> material[matCount - 1].difColor.z;
-	//				}
-	//			}
-	//			break;
+				//Ambient Color (We'll store it in diffuse if there isn't a diffuse already)
+				if (checkChar == 'a')
+				{
+					checkChar = fileIn.get();	//remove space
+					if (!kdset)
+					{
+						fileIn >> material[matCount - 1].difColor.x;
+						fileIn >> material[matCount - 1].difColor.y;
+						fileIn >> material[matCount - 1].difColor.z;
+					}
+				}
+				break;
 
-	//			//Check for transparency
-	//		case 'T':
-	//			checkChar = fileIn.get();
-	//			if (checkChar == 'r')
-	//			{
-	//				checkChar = fileIn.get();	//remove space
-	//				float Transparency;
-	//				fileIn >> Transparency;
+				//Check for transparency
+			case 'T':
+				checkChar = fileIn.get();
+				if (checkChar == 'r')
+				{
+					checkChar = fileIn.get();	//remove space
+					float Transparency;
+					fileIn >> Transparency;
 
-	//				material[matCount - 1].difColor.w = Transparency;
+					material[matCount - 1].difColor.w = Transparency;
 
-	//				if (Transparency > 0.0f)
-	//					material[matCount - 1].transparent = true;
-	//			}
-	//			break;
+					if (Transparency > 0.0f)
+						material[matCount - 1].transparent = true;
+				}
+				break;
 
-	//			//Some obj files specify d for transparency
-	//		case 'd':
-	//			checkChar = fileIn.get();
-	//			if (checkChar == ' ')
-	//			{
-	//				float Transparency;
-	//				fileIn >> Transparency;
+				//Some obj files specify d for transparency
+			case 'd':
+				checkChar = fileIn.get();
+				if (checkChar == ' ')
+				{
+					float Transparency;
+					fileIn >> Transparency;
 
-	//				//'d' - 0 being most transparent, and 1 being opaque, opposite of Tr
-	//				Transparency = 1.0f - Transparency;
+					//'d' - 0 being most transparent, and 1 being opaque, opposite of Tr
+					Transparency = 1.0f - Transparency;
 
-	//				material[matCount - 1].difColor.w = Transparency;
+					material[matCount - 1].difColor.w = Transparency;
 
-	//				if (Transparency > 0.0f)
-	//					material[matCount - 1].transparent = true;
-	//			}
-	//			break;
+					if (Transparency > 0.0f)
+						material[matCount - 1].transparent = true;
+				}
+				break;
 
-	//			//Get the diffuse map (texture)
-	//		case 'm':
-	//			checkChar = fileIn.get();
-	//			if (checkChar == 'a')
-	//			{
-	//				checkChar = fileIn.get();
-	//				if (checkChar == 'p')
-	//				{
-	//					checkChar = fileIn.get();
-	//					if (checkChar == '_')
-	//					{
-	//						//map_Kd - Diffuse map
-	//						checkChar = fileIn.get();
-	//						if (checkChar == 'K')
-	//						{
-	//							checkChar = fileIn.get();
-	//							if (checkChar == 'd')
-	//							{
-	//								std::wstring fileNamePath;
+				//Get the diffuse map (texture)
+			case 'm':
+				checkChar = fileIn.get();
+				if (checkChar == 'a')
+				{
+					checkChar = fileIn.get();
+					if (checkChar == 'p')
+					{
+						checkChar = fileIn.get();
+						if (checkChar == '_')
+						{
+							//map_Kd - Diffuse map
+							checkChar = fileIn.get();
+							if (checkChar == 'K')
+							{
+								checkChar = fileIn.get();
+								if (checkChar == 'd')
+								{
+									std::wstring fileNamePath;
 
-	//								fileIn.get();	//Remove whitespace between map_Kd and file
+									fileIn.get();	//Remove whitespace between map_Kd and file
 
-	//												//Get the file path - We read the pathname char by char since
-	//												//pathnames can sometimes contain spaces, so we will read until
-	//												//we find the file extension
-	//								bool texFilePathEnd = false;
-	//								while (!texFilePathEnd)
-	//								{
-	//									checkChar = fileIn.get();
+													//Get the file path - We read the pathname char by char since
+													//pathnames can sometimes contain spaces, so we will read until
+													//we find the file extension
+									bool texFilePathEnd = false;
+									while (!texFilePathEnd)
+									{
+										checkChar = fileIn.get();
 
-	//									fileNamePath += checkChar;
+										fileNamePath += checkChar;
 
-	//									if (checkChar == '.')
-	//									{
-	//										for (int i = 0; i < 3; ++i)
-	//											fileNamePath += fileIn.get();
+										if (checkChar == '.')
+										{
+											for (int i = 0; i < 3; ++i)
+												fileNamePath += fileIn.get();
 
-	//										texFilePathEnd = true;
-	//									}
-	//								}
+											texFilePathEnd = true;
+										}
+									}
 
-	//								//check if this texture has already been loaded
-	//								bool alreadyLoaded = false;
-	//								for (int i = 0; i < textureNameArray.size(); ++i)
-	//								{
-	//									if (fileNamePath == textureNameArray[i])
-	//									{
-	//										alreadyLoaded = true;
-	//										material[matCount - 1].texArrayIndex = i;
-	//										material[matCount - 1].hasTexture = true;
-	//									}
-	//								}
+									//check if this texture has already been loaded
+									bool alreadyLoaded = false;
+									for (int i = 0; i < textureNameArray.size(); ++i)
+									{
+										if (fileNamePath == textureNameArray[i])
+										{
+											alreadyLoaded = true;
+											material[matCount - 1].texArrayIndex = i;
+											material[matCount - 1].hasTexture = true;
+										}
+									}
 
-	//								//if the texture is not already loaded, load it now
-	//								if (!alreadyLoaded)
-	//								{
-	//									ID3D11ShaderResourceView* tempMeshSRV;
-	//									hr = D3DX11CreateShaderResourceViewFromFile(m_pd3dDevice, fileNamePath.c_str(),
-	//										NULL, NULL, &tempMeshSRV, NULL);
-	//									if (SUCCEEDED(hr))
-	//									{
-	//										textureNameArray.push_back(fileNamePath.c_str());
-	//										material[matCount - 1].texArrayIndex = meshSRV.size();
-	//										meshSRV.push_back(tempMeshSRV);
-	//										material[matCount - 1].hasTexture = true;
-	//									}
-	//								}
-	//							}
-	//						}
-	//						//map_d - alpha map
-	//						else if (checkChar == 'd')
-	//						{
-	//							//Alpha maps are usually the same as the diffuse map
-	//							//So we will assume that for now by only enabling
-	//							//transparency for this material, as we will already
-	//							//be using the alpha channel in the diffuse map
-	//							material[matCount - 1].transparent = true;
-	//						}
+									//if the texture is not already loaded, load it now
+									if (!alreadyLoaded)
+									{
+										ID3D11ShaderResourceView* tempMeshSRV;
+										fileNames.push_back(fileNamePath.c_str());
+										//hr = D3DX11CreateShaderResourceViewFromFile(m_pd3dDevice, fileNamePath.c_str(),
+										//	NULL, NULL, &tempMeshSRV, NULL);
+										if (SUCCEEDED(hr))
+										{
+											textureNameArray.push_back(fileNamePath.c_str());
+											material[matCount - 1].texArrayIndex = meshSRV.size();
+											meshSRV.push_back(tempMeshSRV);
+											material[matCount - 1].hasTexture = true;
+										}
+									}
+								}
+							}
+							//map_d - alpha map
+							else if (checkChar == 'd')
+							{
+								//Alpha maps are usually the same as the diffuse map
+								//So we will assume that for now by only enabling
+								//transparency for this material, as we will already
+								//be using the alpha channel in the diffuse map
+								material[matCount - 1].transparent = true;
+							}
 
-	//						//map_bump - bump map (we're usinga normal map though)
-	//						else if (checkChar == 'b')
-	//						{
-	//							checkChar = fileIn.get();
-	//							if (checkChar == 'u')
-	//							{
-	//								checkChar = fileIn.get();
-	//								if (checkChar == 'm')
-	//								{
-	//									checkChar = fileIn.get();
-	//									if (checkChar == 'p')
-	//									{
-	//										std::wstring fileNamePath;
+							//map_bump - bump map (we're usinga normal map though)
+							else if (checkChar == 'b')
+							{
+								checkChar = fileIn.get();
+								if (checkChar == 'u')
+								{
+									checkChar = fileIn.get();
+									if (checkChar == 'm')
+									{
+										checkChar = fileIn.get();
+										if (checkChar == 'p')
+										{
+											std::wstring fileNamePath;
 
-	//										fileIn.get();	//Remove whitespace between map_bump and file
+											fileIn.get();	//Remove whitespace between map_bump and file
 
-	//														//Get the file path - We read the pathname char by char since
-	//														//pathnames can sometimes contain spaces, so we will read until
-	//														//we find the file extension
-	//										bool texFilePathEnd = false;
-	//										while (!texFilePathEnd)
-	//										{
-	//											checkChar = fileIn.get();
+															//Get the file path - We read the pathname char by char since
+															//pathnames can sometimes contain spaces, so we will read until
+															//we find the file extension
+											bool texFilePathEnd = false;
+											while (!texFilePathEnd)
+											{
+												checkChar = fileIn.get();
 
-	//											fileNamePath += checkChar;
+												fileNamePath += checkChar;
 
-	//											if (checkChar == '.')
-	//											{
-	//												for (int i = 0; i < 3; ++i)
-	//													fileNamePath += fileIn.get();
+												if (checkChar == '.')
+												{
+													for (int i = 0; i < 3; ++i)
+														fileNamePath += fileIn.get();
 
-	//												texFilePathEnd = true;
-	//											}
-	//										}
+													texFilePathEnd = true;
+												}
+											}
 
-	//										//check if this texture has already been loaded
-	//										bool alreadyLoaded = false;
-	//										for (int i = 0; i < textureNameArray.size(); ++i)
-	//										{
-	//											if (fileNamePath == textureNameArray[i])
-	//											{
-	//												alreadyLoaded = true;
-	//												material[matCount - 1].normMapTexArrayIndex = i;
-	//												material[matCount - 1].hasNormMap = true;
-	//											}
-	//										}
+											//check if this texture has already been loaded
+											bool alreadyLoaded = false;
+											for (int i = 0; i < textureNameArray.size(); ++i)
+											{
+												if (fileNamePath == textureNameArray[i])
+												{
+													alreadyLoaded = true;
+													material[matCount - 1].normMapTexArrayIndex = i;
+													material[matCount - 1].hasNormMap = true;
+												}
+											}
 
-	//										//if the texture is not already loaded, load it now
-	//										if (!alreadyLoaded)
-	//										{
-	//											ID3D11ShaderResourceView* tempMeshSRV;
-	//											hr = D3DX11CreateShaderResourceViewFromFile(m_pd3dDevice, fileNamePath.c_str(),
-	//												NULL, NULL, &tempMeshSRV, NULL);
-	//											if (SUCCEEDED(hr))
-	//											{
-	//												textureNameArray.push_back(fileNamePath.c_str());
-	//												material[matCount - 1].normMapTexArrayIndex = meshSRV.size();
-	//												meshSRV.push_back(tempMeshSRV);
-	//												material[matCount - 1].hasNormMap = true;
-	//											}
-	//										}
-	//									}
-	//								}
-	//							}
-	//						}
-	//					}
-	//				}
-	//			}
-	//			break;
+											//if the texture is not already loaded, load it now
+											if (!alreadyLoaded)
+											{
+												ID3D11ShaderResourceView* tempMeshSRV;
+												fileNames.push_back(fileNamePath.c_str());
+												//hr = D3DX11CreateShaderResourceViewFromFile(m_pd3dDevice, fileNamePath.c_str(),
+												//	NULL, NULL, &tempMeshSRV, NULL);
+												if (SUCCEEDED(hr))
+												{
+													textureNameArray.push_back(fileNamePath.c_str());
+													material[matCount - 1].normMapTexArrayIndex = meshSRV.size();
+													meshSRV.push_back(tempMeshSRV);
+													material[matCount - 1].hasNormMap = true;
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				break;
 
-	//		case 'n':	//newmtl - Declare new material
-	//			checkChar = fileIn.get();
-	//			if (checkChar == 'e')
-	//			{
-	//				checkChar = fileIn.get();
-	//				if (checkChar == 'w')
-	//				{
-	//					checkChar = fileIn.get();
-	//					if (checkChar == 'm')
-	//					{
-	//						checkChar = fileIn.get();
-	//						if (checkChar == 't')
-	//						{
-	//							checkChar = fileIn.get();
-	//							if (checkChar == 'l')
-	//							{
-	//								checkChar = fileIn.get();
-	//								if (checkChar == ' ')
-	//								{
-	//									//New material, set its defaults
-	//									SurfaceMaterial tempMat;
-	//									material.push_back(tempMat);
-	//									fileIn >> material[matCount].matName;
-	//									material[matCount].transparent = false;
-	//									material[matCount].hasTexture = false;
-	//									material[matCount].hasNormMap = false;
-	//									material[matCount].normMapTexArrayIndex = 0;
-	//									material[matCount].texArrayIndex = 0;
-	//									matCount++;
-	//									kdset = false;
-	//								}
-	//							}
-	//						}
-	//					}
-	//				}
-	//			}
-	//			break;
+			case 'n':	//newmtl - Declare new material
+				checkChar = fileIn.get();
+				if (checkChar == 'e')
+				{
+					checkChar = fileIn.get();
+					if (checkChar == 'w')
+					{
+						checkChar = fileIn.get();
+						if (checkChar == 'm')
+						{
+							checkChar = fileIn.get();
+							if (checkChar == 't')
+							{
+								checkChar = fileIn.get();
+								if (checkChar == 'l')
+								{
+									checkChar = fileIn.get();
+									if (checkChar == ' ')
+									{
+										//New material, set its defaults
+										SurfaceMaterial tempMat;
+										material.push_back(tempMat);
+										fileIn >> material[matCount].matName;
+										material[matCount].transparent = false;
+										material[matCount].hasTexture = false;
+										material[matCount].hasNormMap = false;
+										material[matCount].normMapTexArrayIndex = 0;
+										material[matCount].texArrayIndex = 0;
+										matCount++;
+										kdset = false;
+									}
+								}
+							}
+						}
+					}
+				}
+				break;
 
-	//		default:
-	//			break;
-	//		}
-	//	}
-	//}
-	//else
-	//{
-	//	//SwapChain->SetFullscreenState(false, NULL);	//Make sure we are out of fullscreen
+			default:
+				break;
+			}
+		}
+	}
+	else
+	{
+		//SwapChain->SetFullscreenState(false, NULL);	//Make sure we are out of fullscreen
 
-	//	std::wstring message = L"Could not open: ";
-	//	message += meshMatLib;
+		std::wstring message = L"Could not open: ";
+		message += meshMatLib;
 
-	//	MessageBox(0, message.c_str(),
-	//		L"Error", MB_OK);
+		MessageBox(0, message.c_str(),
+			L"Error", MB_OK);
 
-	//	return false;
-	//}
+		return false;
+	}
+
+	fileIn.close();
+
 
 	//Set the subsets material to the index value
 	//of the its material in our material array
@@ -894,6 +902,8 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 		if (!hasMat)
 			meshSubsetTexture.push_back(0); //Use first material in array
 	}
+
+
 
 	std::vector<Vertex> vertices;
 	Vertex tempVert;
@@ -1083,7 +1093,7 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 	{
 		wstring SaveName = FileName + _T(".info");
 		//sprintf(fileName, "%ws.info", filename);
-		ofstream out(SaveName, ios::out);
+		wofstream out(SaveName, ios::out);
 
 
 		out << "PNT Count : " << vertices.size() << endl;
@@ -1102,6 +1112,35 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 			out << (*it) << " ";
 		}
 
+		out << endl << endl;
+
+		out << "SubMeshes Num : " << meshSubsets << " / UseMtl Num : " << mtlIndex.size() << endl;// " / " << material.size() << " / " << meshSubsetTexture.size() << endl;
+		
+		for (int i = 0; i < mtlIndex.size(); ++i)
+		{
+			out << "index Start: " << mtlIndex[i] << "\t\t"; //meshSubsetIndexStart[i] << endl;
+		
+			//int sz = material.size() * i;
+			//wstring temp = material[sz + i].matName;
+
+			//for (int j = 0; j < meshMaterials.size(); ++j) {
+				out << "Mat : " << meshMaterials[i] << "\t";//material[sz + j].matName;
+				//for (auto it = material[i].matName.begin(); it != material[i].matName.end(); ++it)
+				//	out << (char*)(*it);		
+				//out << ", Tx : "  << meshSubsetTexture[sz + i] << endl;
+			//}
+				out << endl;
+				//out << "Texture : " << material[i].matName << endl;
+				//material[i].
+				//out << "Texture Array Index" << material[meshSubsetTexture[i]].texArrayIndex << endl;
+		}
+/* 
+		for (auto it = meshSubsetIndexStart.begin(); it != meshSubsetIndexStart.end(); ++it)
+		{
+			out << *it << ", ";
+		}
+		out << endl;
+*/
 		out.close();
 	}
 	{
@@ -1119,7 +1158,7 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 
 		//bin << vertices.size();
 		UINT sz = vertices.size();
-		fwrite(&sz, sizeof(size_t), 1, bin);
+		fwrite(&sz, sizeof(UINT), 1, bin);
 		for (auto it = vertices.begin(); it != vertices.end(); ++it)
 		{
 			fwrite(&it->pos, sizeof(XMFLOAT3), 1, bin);
@@ -1129,7 +1168,7 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 		}
 
 		sz = indices.size();
-		fwrite(&sz, sizeof(size_t), 1, bin);
+		fwrite(&sz, sizeof(UINT), 1, bin);
 		//bin << indices.size();
 
 		for (auto it = indices.begin(); it != indices.end(); ++it)
