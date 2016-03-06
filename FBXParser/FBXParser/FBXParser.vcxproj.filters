@@ -44,5 +44,8 @@
     <ClCompile Include="FBXParser.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Export Example.cpp">
+      <Filter>help</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

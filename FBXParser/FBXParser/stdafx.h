@@ -32,7 +32,9 @@ using namespace DirectX;
 #include <set>
 #include <list>
 #include <time.h>
+#include <wchar.h>
 //#include <ASSERT.h>
 #include <fbxsdk.h>
+
 
 using namespace std;

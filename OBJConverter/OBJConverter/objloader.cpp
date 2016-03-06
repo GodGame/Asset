@@ -569,7 +569,7 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 		MessageBox(0, message.c_str(),	//display message
 			L"Error", MB_OK);
 
-		return false;
+		//return false;
 	}
 
 	meshSubsetIndexStart.push_back(vIndex); //There won't be another index start after our last subset, so set it here
