@@ -27,6 +27,7 @@ using namespace DirectX;
 #include <math.h>
 #include <process.h>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
 #include <set>

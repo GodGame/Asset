@@ -956,16 +956,13 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 			vecY = vertices[indices[(i * 3)]].pos.y - vertices[indices[(i * 3) + 2]].pos.y;
 			vecZ = vertices[indices[(i * 3)]].pos.z - vertices[indices[(i * 3) + 2]].pos.z;
 			edge1 = XMVectorSet(vecX, vecY, vecZ, 0.0f);	//Create our first edge
-
 															//Get the vector describing another edge of our triangle (edge 2,1)
 			vecX = vertices[indices[(i * 3) + 2]].pos.x - vertices[indices[(i * 3) + 1]].pos.x;
 			vecY = vertices[indices[(i * 3) + 2]].pos.y - vertices[indices[(i * 3) + 1]].pos.y;
 			vecZ = vertices[indices[(i * 3) + 2]].pos.z - vertices[indices[(i * 3) + 1]].pos.z;
 			edge2 = XMVectorSet(vecX, vecY, vecZ, 0.0f);	//Create our second edge
-
 															//Cross multiply the two edge vectors to get the un-normalized face normal
 			XMStoreFloat3(&unnormalized, XMVector3Cross(edge1, edge2));
-
 			tempNormal.push_back(unnormalized);
 
 			//Find first texture coordinate edge 2d vector
@@ -1018,12 +1015,12 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 			}
 
 			//Get the actual normal by dividing the normalSum by the number of faces sharing the vertex
-			normalSum = normalSum / (float)facesUsing;
+			normalSum  = normalSum / (float)facesUsing;
 			tangentSum = tangentSum / (float)facesUsing;
 
 			//Normalize the normalSum vector and tangent
-			normalSum = -XMVector3Normalize(normalSum);
-			tangentSum = XMVector3Normalize(tangentSum);
+			normalSum  = -XMVector3Normalize(normalSum);
+			tangentSum =  XMVector3Normalize(tangentSum);
 
 			//Store the normal and tangent in our current vertex
 			vertices[i].normal.x = XMVectorGetX(normalSum);
@@ -1031,13 +1028,13 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 			vertices[i].normal.z = XMVectorGetZ(normalSum);
 
 			vertices[i].tangent.x = -XMVectorGetX(tangentSum);
-			vertices[i].tangent.y = XMVectorGetY(tangentSum);
-			vertices[i].tangent.z = XMVectorGetZ(tangentSum);
+			vertices[i].tangent.y =  XMVectorGetY(tangentSum);
+			vertices[i].tangent.z =  XMVectorGetZ(tangentSum);
 
 			//cout << vertices[i].tangent.x <<", " << vertices[i].tangent.y <<", " << vertices[i].tangent.z << endl;
 
 			//Clear normalSum, tangentSum and facesUsing for next vertex
-			normalSum = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+			normalSum  = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 			tangentSum = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 			facesUsing = 0;
 
@@ -1094,7 +1091,6 @@ bool ObjModel::LoadObjModel(std::wstring filename,
 		wstring SaveName = FileName + _T(".info");
 		//sprintf(fileName, "%ws.info", filename);
 		wofstream out(SaveName, ios::out);
-
 
 		out << "PNT Count : " << vertices.size() << endl;
 		for (auto it = vertices.begin(); it != vertices.end(); ++it)
