@@ -1,5 +1,11 @@
 #include "FBXParser.h"
 
+ostream & operator<<(ostream & os, FbxDouble4 & vt)
+{
+	os << vt.mData[0] << ", " << vt.mData[1] << ", " << vt.mData[2] << ", " << vt.mData[3];
+	return os;
+}
+
 ostream& operator<<(ostream& os, FbxVector4 & vt)
 {
 	os << vt.mData[0] << ", " << vt.mData[1] << ", " << vt.mData[2] << ", " << vt.mData[3];
@@ -26,6 +32,7 @@ FBXParser::FBXParser()
 	m_pRootNode = nullptr;
 
 	m_pImporter = nullptr;
+	m_pAnimLayer = nullptr;
 	//m_ppControlPos = nullptr;
 	//m_ppPos = nullptr;
 	//m_ppNormal = nullptr;
@@ -97,8 +104,10 @@ void FBXParser::Run()
 	for (int i = 0; i < m_obj.m_pFbxMeshes.size(); ++i)
 		MeshRead(i);
 
-
 	TextureRead();
+
+	SetAnimation();
+	LoadAnimation();
 
 	FileOutObject();
 }
@@ -516,6 +525,155 @@ void FBXParser::FileOutObject()
 		}
 		fclose(bin);
 	}
+}
+
+void FBXParser::LoadAnimation()
+{
+	FbxAMatrix lDummyGlobalPosition[20];
+	FbxNode* pNode[20] = { NULL };
+	for (UINT i = 0; i < 20; ++i)
+	{
+		pNode[i] = NULL;
+	}
+
+	FbxAMatrix lGeometryOffset[20];
+	FbxAMatrix lGlobalOffPosition[20];
+	FbxPose * lPose[20];
+	for (UINT i = 0; i < 20; ++i)
+	{
+		lPose[i] = NULL;
+	}
+	for (auto nTime = m_tStart; nTime <= m_tStop; nTime += m_tFrameTime)
+	{
+		cout << "Time : " << nTime.GetMilliSeconds() << endl;
+		for (int i = 0; i < m_pRootNode->GetSrcObjectCount(); ++i)
+		{
+			FbxObject * pfbxObject = m_pRootNode->GetSrcObject(i);
+			FbxNode * pThisNode = m_pRootNode->GetChild(i);
+			FbxMesh * pMesh = pThisNode->GetMesh();
+
+//			VBOMesh* pMesh = GetVBOMesh(i);
+			pNode[i] = pThisNode;
+
+			lPose[i] = NULL;
+			FbxAMatrix lGlobalPosition = GetGlobalPosition(pNode[i], nTime, lPose[i], &lDummyGlobalPosition[i]);
+
+			FbxNodeAttribute* lNodeAttribute = pNode[i]->GetNodeAttribute();
+
+			if (lNodeAttribute)
+			{
+				// Geometry offset.
+				// it is not inherited by the children.
+				lGeometryOffset[i] = GetGeometry(pNode[i]);
+				lGlobalOffPosition[i] = lGlobalPosition * lGeometryOffset[i];
+
+				AnimateNode(pMesh, pNode[i], nTime, /*mCurrentAnimLayer*/m_pAnimLayer, lDummyGlobalPosition[i], lGlobalOffPosition[i], lPose[i]);
+			}
+		}
+
+		//CreateVBBuffer(pd3dDevice);
+	}
+
+	//Init(pd3dDevice);
+
+	//printf("%d번째 캐릭터 애니메이션 총 개수 = %d 정점 개수 = %d 인덱스 개수 = %d\n", test++, GetTotalAnimationCount(), GetTotalVertCount(), GetTotalIndexCount());
+	for (UINT i = 0; i < 20; ++i)
+	{
+		if (pNode[i] != NULL) pNode[i]->Destroy();
+	}
+
+	for (UINT i = 0; i < 20; ++i)
+	{
+		if (lPose[i] != NULL) lPose[i]->Destroy();
+	}
+
+	//for (auto i = 0; i < GetMeshSize(); ++i)
+	//{
+	//	for (int j = 0; j < GetVBOMesh(i)->mSubMeshes.GetCount(); ++j)
+	//		GetVBOMesh(i)->mSubMeshes.RemoveIt(GetVBOMesh(i)->mSubMeshes[j]);
+
+	//	GetVBOMesh(i)->mSubMeshes.Clear();
+
+	//	GetVBOMesh(i)->mNormals.clear();
+	//	GetVBOMesh(i)->mTexCoords.clear();
+	//}
+
+	//FbxArrayDelete(mAnimStackNameArray);
+	//FbxArrayDelete(mPoseArray);
+	//if (mCurrentAnimLayer)
+	//{
+	//	mCurrentAnimLayer->Clear();
+	//	mCurrentAnimLayer->Destroy();
+	//}
+}
+
+void FBXParser::SetAnimation()
+{
+	m_tFrameTime.SetTime(0, 0, 0, 1, 0, m_pScene->GetGlobalSettings().GetTimeMode());
+
+	FbxArray<FbxString*> NameArray;
+	m_pScene->FillAnimStackNameArray(NameArray);
+
+	cout << NameArray.Size() << endl;
+	for (int i = 0; i < NameArray.Size(); ++i)
+	{
+		if (NameArray[i]->Compare(m_pScene->ActiveAnimStackName.Get()) == 0)
+		{
+			// select the base layer from the animation stack
+			// 애니메이션 스택에서 베이스 층을 선택한다.
+
+			// FbxAnimStack : 애니메이션 스택은 애니메이션 레이어의 모음입니다. 
+			// FBX 문서는 하나 이상의 애니메이션 스택을 가질 수있다. 각 스택은 하나가 FBX SDK의 이전 버전에서 "take"로 볼 수 있습니다.
+			// "스택"용어는 물체가소 정의 속성에 대한 결과적인 애니메이션을 만들어 내기 위해 블렌딩 모드에 따라 평가되는
+			// N애니메이션 레이어 1이 포함되어 있다는 사실에서 나온다.
+			FbxAnimStack * lCurrentAnimationStack = m_pScene->FindMember<FbxAnimStack>(NameArray[i]->Buffer());
+			m_pAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>();
+			// we assume that the first animation layer connected to the animation stack is the base layer
+			// (this is the assumption made in the FBXSDK)
+			// 우리는 애니메이션 스택에 연결된 첫번째 애니메이션 층이 베이스 층(이것은 FBXSDK 이루어진 가정이다) 인 것으로 가정한다.
+			m_pScene->SetCurrentAnimationStack(lCurrentAnimationStack);
+
+			FbxTakeInfo* lCurrentTakeInfo = m_pScene->GetTakeInfo(*(NameArray[i]));
+			//FbxTime mStart, mStop;
+			if (lCurrentTakeInfo)
+			{
+				m_tStart = lCurrentTakeInfo->mLocalTimeSpan.GetStart();
+				m_tStop = lCurrentTakeInfo->mLocalTimeSpan.GetStop();
+			}
+			else
+			{
+				// Take the time line value
+				FbxTimeSpan lTimeLineTimeSpan;
+				m_pScene->GetGlobalSettings().GetTimelineDefaultTimeSpan(lTimeLineTimeSpan);
+
+				m_tStart = lTimeLineTimeSpan.GetStart();
+				m_tStop = lTimeLineTimeSpan.GetStop();
+			}
+
+			cout << "St : " << m_tStart.GetMilliSeconds() << ", End : " << m_tStop.GetMilliSeconds() << endl;
+
+			// check for smallest start with cache start
+	//		if (pObject->GetVBOMesh(count)->mCache_Start < pObject->GetVBOMesh(count)->mStart)
+	//			pObject->GetVBOMesh(count)->mStart = pObject->GetVBOMesh(count)->mCache_Start;
+
+			// check for biggest stop with cache stop
+		//	if (pObject->GetVBOMesh(count)->mCache_Stop > pObject->GetVBOMesh(count)->mStop)
+		//		pObject->GetVBOMesh(count)->mStop = pObject->GetVBOMesh(count)->mCache_Stop;
+		}
+		cout << *NameArray[i] << endl;
+	}
+	FbxArray<FbxPose*> PoseArray;
+	const int lPoseCount = m_pScene->GetPoseCount();
+
+	for (int i = 0; i < lPoseCount; ++i)
+	{
+		FbxPose * pPose = m_pScene->GetPose(i);
+		cout << "Count : " << pPose->GetCount() << endl;
+		cout << "Name : " << pPose->GetName() << endl;
+
+		PoseArray.Add(pPose);
+	}
+
 }
 
 void FBXParser::MeshRead(int MeshIndex)
@@ -1089,6 +1247,235 @@ void FBXParser::SetFbxFloatToXmFloat(XMFLOAT2 & data, FbxVector2 & fbxdata)
 	data.x = static_cast<float>(fbxdata[0]);
 	data.y = static_cast<float>(1.0 - fbxdata[1]);
 #endif
+}
+
+FbxAMatrix FBXParser::GetGlobalPosition(FbxNode * pNode, const FbxTime & pTime, FbxPose * pPose, FbxAMatrix * pParentGlobalPosition)
+{
+	FbxAMatrix lGlobalPosition;
+	bool        lPositionFound = false;
+
+	if (pPose)
+	{
+		int lNodeIndex = pPose->Find(pNode);
+
+		if (lNodeIndex > -1)
+		{
+			// The bind pose is always a global matrix.
+			// If we have a rest pose, we need to check if it is
+			// stored in global or local space.
+			if (pPose->IsBindPose() || !pPose->IsLocalMatrix(lNodeIndex))
+			{
+				lGlobalPosition = GetPoseMatrix(pPose, lNodeIndex);
+			}
+			else
+			{
+				// We have a local matrix, we need to convert it to
+				// a global space matrix.
+				FbxAMatrix lParentGlobalPosition;
+
+				if (pParentGlobalPosition)
+				{
+					lParentGlobalPosition = *pParentGlobalPosition;
+				}
+				else
+				{
+					if (pNode->GetParent())
+					{
+						lParentGlobalPosition = GetGlobalPosition(pNode->GetParent(), pTime, pPose, nullptr); // nullptr?
+					}
+				}
+
+				FbxAMatrix lLocalPosition = GetPoseMatrix(pPose, lNodeIndex);
+				lGlobalPosition = lParentGlobalPosition * lLocalPosition;
+			}
+
+			lPositionFound = true;
+		}
+	}
+
+	if (!lPositionFound)
+	{
+		// There is no pose entry for that node, get the current global position instead.
+
+		// Ideally this would use parent global position and local position to compute the global position.
+		// Unfortunately the equation 
+		//    lGlobalPosition = pParentGlobalPosition * lLocalPosition
+		// does not hold when inheritance type is other than "Parent" (RSrs).
+		// To compute the parent rotation and scaling is tricky in the RrSs and Rrs cases.
+		lGlobalPosition = pNode->EvaluateGlobalTransform(pTime);
+	}
+
+	return lGlobalPosition;
+}
+
+FbxAMatrix FBXParser::GetPoseMatrix(FbxPose * pPose, int pNodeIndex)
+{
+	FbxAMatrix lPoseMatrix;
+	FbxMatrix lMatrix = pPose->GetMatrix(pNodeIndex);
+
+	memcpy((double*)lPoseMatrix, (double*)lMatrix, sizeof(lMatrix.mData));
+
+	return lPoseMatrix;
+}
+
+FbxAMatrix FBXParser::GetGeometry(FbxNode * pNode)
+{
+	const FbxVector4 lT = pNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+	const FbxVector4 lR = pNode->GetGeometricRotation(FbxNode::eSourcePivot);
+	const FbxVector4 lS = pNode->GetGeometricScaling(FbxNode::eSourcePivot);
+
+	return FbxAMatrix(lT, lR, lS);
+}
+
+void FBXParser::AnimateNode(FbxMesh * pMesh, FbxNode * pNode, FbxTime & pTime, FbxAnimLayer * pAnimLayer, FbxAMatrix & pParentGlobalPosition, FbxAMatrix & pGlobalPosition, FbxPose * pPose)
+{
+	FbxNodeAttribute* lNodeAttribute = pNode->GetNodeAttribute();
+
+	if (lNodeAttribute)
+	{
+		if (lNodeAttribute->GetAttributeType() == FbxNodeAttribute::eMesh)
+		{
+			cout << "이것은 Animate Mesh다!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+			//AnimateMesh(pd3dDevice, pMesh, pNode, pTime, pAnimLayer, pGlobalPosition, pPose);
+		}
+		else if (lNodeAttribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+		{
+			cout << "이것은 Skeleton이다!!";
+			AnimateSkeleton(pMesh, pNode, pParentGlobalPosition, pGlobalPosition);
+		}
+	}
+
+}
+
+void FBXParser::AnimateMesh(ID3D11Device * pd3dDevice, FbxMesh * pMesh, FbxNode * pNode, FbxTime & pTime, FbxAnimLayer * pAnimLayer, FbxAMatrix & pGlobalPosition, FbxPose * pPose)
+{
+	//FbxMesh* lMesh = pNode->GetMesh();
+	//const int lVertexCount = lMesh->GetControlPointsCount();
+
+	//if (lVertexCount == 0)
+	//	return;
+
+	//const VBOMesh * lMeshCache = static_cast<const VBOMesh *>(lMesh->GetUserDataPtr());
+
+	//const bool lHasVertexCache = lMesh->GetDeformerCount(FbxDeformer::eVertexCache) &&
+	//	(static_cast<FbxVertexCacheDeformer*>(lMesh->GetDeformer(0, FbxDeformer::eVertexCache)))->Active.Get();
+	//const bool lHasShape = lMesh->GetShapeCount() > 0;
+	//const bool lHasSkin = lMesh->GetDeformerCount(FbxDeformer::eSkin) > 0;
+	//const bool lHasDeformation = lHasVertexCache || lHasShape || lHasSkin;
+
+	//FbxVector4* lVertexArray = NULL;
+	//if (!lMeshCache || lHasDeformation)
+	//{
+	//	lVertexArray = new FbxVector4[lVertexCount];
+	//	memcpy(lVertexArray, lMesh->GetControlPoints(), lVertexCount * sizeof(FbxVector4));
+	//}
+
+	//if (lHasDeformation)
+	//{
+	//	if (lHasVertexCache)
+	//	{
+	//		ReadVertexCacheData(lMesh, pTime, lVertexArray);
+	//	}
+	//	else
+	//	{
+	//		if (lHasShape)
+	//		{
+	//			// Deform the vertex array with the shapes.
+	//			ComputeShapeDeformation(lMesh, pTime, pAnimLayer, lVertexArray);
+	//		}
+
+	//		// we need to get the number of clusters
+	//		const int lSkinCount = lMesh->GetDeformerCount(FbxDeformer::eSkin);
+	//		int lClusterCount = 0;
+	//		for (int lSkinIndex = 0; lSkinIndex < lSkinCount; ++lSkinIndex)
+	//		{
+	//			lClusterCount += ((FbxSkin *)(lMesh->GetDeformer(lSkinIndex, FbxDeformer::eSkin)))->GetClusterCount();
+	//		}
+	//		if (lClusterCount)
+	//		{
+	//			ComputeSkinDeformation(pd3dDevice, pMesh, pGlobalPosition, lMesh, pTime, lVertexArray, pPose);
+	//		}
+	//	}
+	//}
+
+	//if (lVertexArray != NULL)
+	//	delete[] lVertexArray;
+
+}
+
+void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & pParentGlobalPosition, FbxAMatrix & pGlobalPosition)
+{
+//	FbxAnimStack* currAnimStack = mFBXScene->GetSrcObject<FbxAnimStack>(0);
+//	FbxString animStackName = currAnimStack->GetName();
+//	mAnimationName = animStackName.Buffer();
+//	FbxTakeInfo* takeInfo = mFBXScene->GetTakeInfo(animStackName);
+//	FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
+//	FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
+
+	
+	//currAnimStack->Get
+//	UINT numOfDeformers = pOb();
+	//FbxMesh * pMesh = pNode->GetMesh();
+	int nAnimStacks = m_pRootNode->GetSrcObjectCount<FbxAnimStack>();
+	// 애니매이션 스택
+	for (int i = 0; i < nAnimStacks; ++i)
+	{
+		FbxAnimStack* currAnimStack = m_pScene->GetSrcObject<FbxAnimStack>(i);
+		// 애니매이션 레이어
+		int nAnimLayers = currAnimStack->GetMemberCount<FbxAnimLayer>();
+		for (int j = 0; j < nAnimLayers; ++j)
+		{
+			FbxAnimLayer * pfbxAnimLayer = currAnimStack->GetMember<FbxAnimLayer>(j);
+			// 애니매이션 커브(노드 속성)
+			FbxAnimCurve * pfbxAnimCurve = pNode->LclTranslation.GetCurve(pfbxAnimLayer, "X");
+			FbxNodeAttribute * pfbxAttribute = pNode->GetNodeAttribute();
+			pfbxAnimCurve = pfbxAttribute->Color.GetCurve(pfbxAnimLayer, "X");
+
+			// 애니매이션 커브 노드
+			FbxProperty fbxProperty = pNode->GetFirstProperty();
+			FbxAnimCurveNode * pfbxCurveNode = fbxProperty.GetCurveNode(pfbxAnimLayer);
+			int nCurveNodes = pfbxCurveNode->GetCurveCount(0);
+			for (int k = 0; k < nCurveNodes; ++k)
+			{
+				FbxAnimCurve * pfbxAnimCurve = pfbxCurveNode->GetCurve(0, k);
+			}
+		}
+	}
+
+	//for (int deformerIndex = 0; deformerIndex < numOfDeformers; ++deformerIndex)
+	//{
+	//	FbxSkin* currSkin = reinterpret_cast<FbxSkin*>(pMesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
+
+	//	UINT numOfClusters = currSkin->GetClusterCount();
+
+	//}
+
+ 	m_tAnimationLength = m_tStop.GetFrameCount(FbxTime::eFrames24) - m_tStart.GetFrameCount(FbxTime::eFrames24) + 1;
+//	Keyframe** currAnim = &mSkeleton.mJoints[currJointIndex].mAnimation;
+
+	for (FbxLongLong i = m_tStart.GetFrameCount(FbxTime::eFrames24); i <= m_tStop.GetFrameCount(FbxTime::eFrames24); ++i)
+	{
+		FbxTime currTime;
+		currTime.SetFrame(i, FbxTime::eFrames24);
+
+		cout << "Parent Global : " << endl;
+		cout << pParentGlobalPosition.mData[0] << endl;
+		cout << pParentGlobalPosition.mData[1] << endl;
+		cout << pParentGlobalPosition.mData[2] << endl;
+		cout << pParentGlobalPosition.mData[3] << endl << endl;
+
+		//cout << "This Global : " << pGlobalPosition.mData[0] << endl;
+		//cout << pGlobalPosition.mData[1] << endl;
+		//cout << pGlobalPosition.mData[2] << endl;
+		//cout << pGlobalPosition.mData[3] << endl;
+
+		//*currAnim = new Keyframe();
+		//(*currAnim)->mFrameNum = i;
+		FbxAMatrix currentTransformOffset = pNode->EvaluateGlobalTransform(currTime) * pParentGlobalPosition;//geometryTransform;
+		//FbxAMatrix Transform = currentTransformOffset.Inverse() * currCluster
+	//(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
+//		currAnim = &((*currAnim)->mNext);
+	}
 }
 
 
