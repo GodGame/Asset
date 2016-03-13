@@ -68,6 +68,11 @@ FBXParser::~FBXParser()
 	//	delete[] m_ppNormal;
 	//}
 
+	for (auto it = m_vcAnimData.begin(); it != m_vcAnimData.end(); ++it)
+	{
+		delete *it;
+	}
+	m_vcAnimData.clear();
 }
 
 bool FBXParser::Initialize(const char * pstr)
@@ -430,9 +435,12 @@ void FBXParser::FileOutObject()
 		FileName.push_back(*it);
 	}
 
-	if (m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.x != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.y != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.z != 0)
+	if (m_obj.m_vcMeshes.size() > 0)
 	{
-		bUseTangent = true;
+		if (m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.x != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.y != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.z != 0)
+		{
+			bUseTangent = true;
+		}
 	}
 
 	{
@@ -529,63 +537,26 @@ void FBXParser::FileOutObject()
 
 void FBXParser::LoadAnimation()
 {
-	FbxAMatrix lDummyGlobalPosition[20];
-	FbxNode* pNode[20] = { NULL };
-	for (UINT i = 0; i < 20; ++i)
-	{
-		pNode[i] = NULL;
-	}
 
-	FbxAMatrix lGeometryOffset[20];
-	FbxAMatrix lGlobalOffPosition[20];
-	FbxPose * lPose[20];
-	for (UINT i = 0; i < 20; ++i)
-	{
-		lPose[i] = NULL;
-	}
-	for (auto nTime = m_tStart; nTime <= m_tStop; nTime += m_tFrameTime)
+	for (FbxTime nTime = m_tStart; nTime <= m_tStop; nTime += m_tFrameTime)
 	{
 		cout << "Time : " << nTime.GetMilliSeconds() << endl;
+		cout << "Child Num : " << m_pRootNode->GetSrcObjectCount() << endl;
+
 		for (int i = 0; i < m_pRootNode->GetSrcObjectCount(); ++i)
 		{
 			FbxObject * pfbxObject = m_pRootNode->GetSrcObject(i);
 			FbxNode * pThisNode = m_pRootNode->GetChild(i);
-			FbxMesh * pMesh = pThisNode->GetMesh();
 
-//			VBOMesh* pMesh = GetVBOMesh(i);
-			pNode[i] = pThisNode;
-
-			lPose[i] = NULL;
-			FbxAMatrix lGlobalPosition = GetGlobalPosition(pNode[i], nTime, lPose[i], &lDummyGlobalPosition[i]);
-
-			FbxNodeAttribute* lNodeAttribute = pNode[i]->GetNodeAttribute();
-
-			if (lNodeAttribute)
-			{
-				// Geometry offset.
-				// it is not inherited by the children.
-				lGeometryOffset[i] = GetGeometry(pNode[i]);
-				lGlobalOffPosition[i] = lGlobalPosition * lGeometryOffset[i];
-
-				AnimateNode(pMesh, pNode[i], nTime, /*mCurrentAnimLayer*/m_pAnimLayer, lDummyGlobalPosition[i], lGlobalOffPosition[i], lPose[i]);
-			}
+			GetChildAnimation(pThisNode, nTime);
 		}
-
 		//CreateVBBuffer(pd3dDevice);
 	}
 
 	//Init(pd3dDevice);
 
 	//printf("%d번째 캐릭터 애니메이션 총 개수 = %d 정점 개수 = %d 인덱스 개수 = %d\n", test++, GetTotalAnimationCount(), GetTotalVertCount(), GetTotalIndexCount());
-	for (UINT i = 0; i < 20; ++i)
-	{
-		if (pNode[i] != NULL) pNode[i]->Destroy();
-	}
 
-	for (UINT i = 0; i < 20; ++i)
-	{
-		if (lPose[i] != NULL) lPose[i]->Destroy();
-	}
 
 	//for (auto i = 0; i < GetMeshSize(); ++i)
 	//{
@@ -607,17 +578,75 @@ void FBXParser::LoadAnimation()
 	//}
 }
 
+void FBXParser::GetChildAnimation(FbxNode * pParentNode, FbxTime nTime)
+{
+	if (pParentNode == nullptr) return;
+
+	FbxAMatrix lDummyGlobalPosition[20];
+	vector<FbxNode*> pNode;
+
+	FbxAMatrix lGeometryOffset[20];
+	FbxAMatrix lGlobalOffPosition[20];
+	FbxPose * lPose[20];
+	for (UINT i = 0; i < 20; ++i)
+	{
+		lPose[i] = NULL;
+	}
+
+	int nObjects = pParentNode->GetSrcObjectCount();
+	cout << "자식의 개수 : " << nObjects << endl;
+
+	for (int i = 0; i < nObjects; ++i)
+	{
+		FbxObject * pfbxObject = pParentNode->GetSrcObject(i);
+		FbxNode * pChildNode = pParentNode->GetChild(i);
+		if (pChildNode == nullptr) continue;
+
+		GetChildAnimation(pChildNode, nTime);
+
+		FbxMesh * pMesh = nullptr;//pChildNode->GetMesh();
+
+		//			VBOMesh* pMesh = GetVBOMesh(i);
+		pNode.push_back(pChildNode);
+
+		lPose[i] = NULL;
+		FbxAMatrix lGlobalPosition = GetGlobalPosition(pNode[i], nTime, lPose[i], &lDummyGlobalPosition[i]);
+
+		FbxNodeAttribute* lNodeAttribute = pNode[i]->GetNodeAttribute();
+
+		if (lNodeAttribute)
+		{
+			// Geometry offset.
+			// it is not inherited by the children.
+			lGeometryOffset[i] = GetGeometry(pNode[i]);
+			lGlobalOffPosition[i] = lGlobalPosition * lGeometryOffset[i];
+
+			AnimateNode(pMesh, pNode[i], nTime, /*mCurrentAnimLayer*/m_pAnimLayer, lDummyGlobalPosition[i], lGlobalOffPosition[i], lPose[i]);
+		}
+	}
+
+	for (auto it = pNode.begin(); it != pNode.end(); ++it)
+	{
+		(*it)->Destroy();
+	}
+
+	for (UINT i = 0; i < 20; ++i)
+	{
+		if (lPose[i] != NULL) lPose[i]->Destroy();
+	}
+	
+}
+
 void FBXParser::SetAnimation()
 {
 	m_tFrameTime.SetTime(0, 0, 0, 1, 0, m_pScene->GetGlobalSettings().GetTimeMode());
 
-	FbxArray<FbxString*> NameArray;
-	m_pScene->FillAnimStackNameArray(NameArray);
+	m_pScene->FillAnimStackNameArray(m_stNameArray);
 
-	cout << NameArray.Size() << endl;
-	for (int i = 0; i < NameArray.Size(); ++i)
+	cout << m_stNameArray.Size() << endl;
+	for (int i = 0; i < m_stNameArray.Size(); ++i)
 	{
-		if (NameArray[i]->Compare(m_pScene->ActiveAnimStackName.Get()) == 0)
+		if (m_stNameArray[i]->Compare(m_pScene->ActiveAnimStackName.Get()) == 0)
 		{
 			// select the base layer from the animation stack
 			// 애니메이션 스택에서 베이스 층을 선택한다.
@@ -626,14 +655,14 @@ void FBXParser::SetAnimation()
 			// FBX 문서는 하나 이상의 애니메이션 스택을 가질 수있다. 각 스택은 하나가 FBX SDK의 이전 버전에서 "take"로 볼 수 있습니다.
 			// "스택"용어는 물체가소 정의 속성에 대한 결과적인 애니메이션을 만들어 내기 위해 블렌딩 모드에 따라 평가되는
 			// N애니메이션 레이어 1이 포함되어 있다는 사실에서 나온다.
-			FbxAnimStack * lCurrentAnimationStack = m_pScene->FindMember<FbxAnimStack>(NameArray[i]->Buffer());
+			FbxAnimStack * lCurrentAnimationStack = m_pScene->FindMember<FbxAnimStack>(m_stNameArray[i]->Buffer());
 			m_pAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>();
 			// we assume that the first animation layer connected to the animation stack is the base layer
 			// (this is the assumption made in the FBXSDK)
 			// 우리는 애니메이션 스택에 연결된 첫번째 애니메이션 층이 베이스 층(이것은 FBXSDK 이루어진 가정이다) 인 것으로 가정한다.
 			m_pScene->SetCurrentAnimationStack(lCurrentAnimationStack);
 
-			FbxTakeInfo* lCurrentTakeInfo = m_pScene->GetTakeInfo(*(NameArray[i]));
+			FbxTakeInfo* lCurrentTakeInfo = m_pScene->GetTakeInfo(*(m_stNameArray[i]));
 			//FbxTime mStart, mStop;
 			if (lCurrentTakeInfo)
 			{
@@ -660,7 +689,7 @@ void FBXParser::SetAnimation()
 		//	if (pObject->GetVBOMesh(count)->mCache_Stop > pObject->GetVBOMesh(count)->mStop)
 		//		pObject->GetVBOMesh(count)->mStop = pObject->GetVBOMesh(count)->mCache_Stop;
 		}
-		cout << *NameArray[i] << endl;
+		cout << *m_stNameArray[i] << endl;
 	}
 	FbxArray<FbxPose*> PoseArray;
 	const int lPoseCount = m_pScene->GetPoseCount();
@@ -1412,33 +1441,69 @@ void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & p
 //	FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
 //	FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
 
+	//FbxObject * pObj =  pNode->GetSrcObject();
+	//unsigned int numOfDeformers = pObj->Deformer// ->GetDeformerCount();
+	//// This geometry transform is something I cannot understand
+	//// I think it is from MotionBuilder
+	//// If you are using Maya for your models, 99% this is just an
+	//// identity matrix
+	//// But I am taking it into account anyways......
+
+	//// A deformer is a FBX thing, which contains some clusters
+	//// A cluster contains a link, which is basically a joint
+	//// Normally, there is only one deformer in a mesh
+	//for (unsigned int deformerIndex = 0; deformerIndex < numOfDeformers; ++deformerIndex)
+	//{
+	//	// There are many types of deformers in Maya,
+	//	// We are using only skins, so we see if this is a skin
+	//	FbxSkin* currSkin = reinterpret_cast<FbxSkin*>(pMesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
+	//}
+
+
 	
 	//currAnimStack->Get
 //	UINT numOfDeformers = pOb();
-	//FbxMesh * pMesh = pNode->GetMesh();
-	int nAnimStacks = m_pRootNode->GetSrcObjectCount<FbxAnimStack>();
+	FbxMesh * fbxMesh = pNode->GetMesh();
+	int nAnimStacks = m_stNameArray.Size();//m_pRootNode->GetSrcObjectCount<FbxAnimStack>();
 	// 애니매이션 스택
 	for (int i = 0; i < nAnimStacks; ++i)
 	{
-		FbxAnimStack* currAnimStack = m_pScene->GetSrcObject<FbxAnimStack>(i);
+		//FbxAnimStack* currAnimStack = m_pScene->GetSrcObject<FbxAnimStack>(i);
 		// 애니매이션 레이어
-		int nAnimLayers = currAnimStack->GetMemberCount<FbxAnimLayer>();
+		FbxAnimStack * lCurrentAnimationStack = m_pScene->FindMember<FbxAnimStack>(m_stNameArray[i]->Buffer());
+		m_pAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>();
+		
+		int nAnimLayers = lCurrentAnimationStack->GetMemberCount(); // m_pAnimLayer->GetMemberCount(); 
+		cout << "총 스택 수 : " << lCurrentAnimationStack->GetMemberCount() << endl;
+		cout << "총 레이어 수 : " << m_pAnimLayer->GetMemberCount() << endl;
+		
+		//FbxAnimLayer * pAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>();//currAnimStack->GetMember<FbxAnimLayer>(j);
 		for (int j = 0; j < nAnimLayers; ++j)
 		{
-			FbxAnimLayer * pfbxAnimLayer = currAnimStack->GetMember<FbxAnimLayer>(j);
+			FbxAnimLayer * pfbxAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>(j);//m_pAnimLayer->GetMember<FbxAnimLayer>(j);// 
 			// 애니매이션 커브(노드 속성)
-			FbxAnimCurve * pfbxAnimCurve = pNode->LclTranslation.GetCurve(pfbxAnimLayer, "X");
-			FbxNodeAttribute * pfbxAttribute = pNode->GetNodeAttribute();
-			pfbxAnimCurve = pfbxAttribute->Color.GetCurve(pfbxAnimLayer, "X");
+			FbxString jointName = pNode->LclTranslation.GetParent().GetName();
+			cout << "Name : " << jointName << endl;
 
-			// 애니매이션 커브 노드
-			FbxProperty fbxProperty = pNode->GetFirstProperty();
-			FbxAnimCurveNode * pfbxCurveNode = fbxProperty.GetCurveNode(pfbxAnimLayer);
-			int nCurveNodes = pfbxCurveNode->GetCurveCount(0);
-			for (int k = 0; k < nCurveNodes; ++k)
-			{
-				FbxAnimCurve * pfbxAnimCurve = pfbxCurveNode->GetCurve(0, k);
-			}
+			FbxAnimCurve * pfbxAnimCurve = nullptr;
+			pfbxAnimCurve = pNode->LclTranslation.GetCurve(pfbxAnimLayer, "X");
+			FbxNodeAttribute * pfbxAttribute = pNode->GetNodeAttribute();
+			ParseKeyData(pfbxAnimCurve, jointName + " X Rot");
+
+			pfbxAnimCurve = pNode->LclTranslation.GetCurve(pfbxAnimLayer, "Y");
+			ParseKeyData(pfbxAnimCurve, jointName + " Y Rot");
+
+			pfbxAnimCurve = pNode->LclTranslation.GetCurve(pfbxAnimLayer, "Z");
+			ParseKeyData(pfbxAnimCurve, jointName + " Z Rot");
+
+			// 애니매이션 커브 노드FbxAnimCurve
+			//FbxProperty fbxProperty = pNode->GetFirstProperty();
+			//FbxAnimCurveNode * pfbxCurveNode = fbxProperty.GetCurveNode(pfbxAnimLayer);
+			//int nCurveNodes = pfbxCurveNode->GetCurveCount(0);
+			//for (int k = 0; k < nCurveNodes; ++k)
+			//{
+			//	FbxAnimCurve * pfbxAnimCurve = pfbxCurveNode->GetCurve(0, k);
+			//}
 		}
 	}
 
@@ -1464,10 +1529,10 @@ void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & p
 		cout << pParentGlobalPosition.mData[2] << endl;
 		cout << pParentGlobalPosition.mData[3] << endl << endl;
 
-		//cout << "This Global : " << pGlobalPosition.mData[0] << endl;
-		//cout << pGlobalPosition.mData[1] << endl;
-		//cout << pGlobalPosition.mData[2] << endl;
-		//cout << pGlobalPosition.mData[3] << endl;
+		cout << "This Global : " << pGlobalPosition.mData[0] << endl;
+		cout << pGlobalPosition.mData[1] << endl;
+		cout << pGlobalPosition.mData[2] << endl;
+		cout << pGlobalPosition.mData[3] << endl;
 
 		//*currAnim = new Keyframe();
 		//(*currAnim)->mFrameNum = i;
@@ -1476,6 +1541,161 @@ void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & p
 	//(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
 //		currAnim = &((*currAnim)->mNext);
 	}
+}
+
+void FBXParser::ParseAnimations()
+{
+	//FbxNode* rootNode = m_pScene->GetRootNode();
+
+	//// need this to store the anim data then give it to the motion struct
+	//for (int i = 0; i < m_pScene->GetSrcObjectCount(FBX_TYPE(FbxAnimStack)); i++)
+	//{
+	//	// stacks hold animation layers, so go through the stacks first
+	//	FbxAnimStack* pAnimStack = FbxCast<FbxAnimStack>(m_pScene->GetSrcObject(FBX_TYPE(FbxAnimStack), i));
+	//	m_pScene->GetAnimationEvaluator()->SetContext(pAnimStack);
+
+	//	FbxTimeSpan timeSpan = pAnimStack->GetLocalTimeSpan();
+	//	ParseAnimationRecursive(pAnimStack, rootNode);
+	//}
+}
+
+void FBXParser::ParseAnimationRecursive(FbxAnimStack* pAnimStack, FbxNode* pNode)
+{
+	//int nbAnimLayers = pAnimStack->GetMemberCount(FBX_TYPE(FbxAnimLayer));
+
+	//std::string takeName = pAnimStack->GetName();
+	//for (int layerNo = 0; layerNo < nbAnimLayers; layerNo++)
+	//{
+	//	// layers hold animcurves so go through each layers set of curves
+	//	FbxAnimLayer* pAnimLayer = pAnimStack->GetMember(FBX_TYPE(KFbxAnimLayer), layerNo);
+
+	//	ParseAnimationRecursive(pAnimLayer, pNode, -2);
+	//}
+}
+
+void FBXParser::ParseAnimationRecursive(FbxAnimLayer* pAnimLayer, FbxNode* pNode, int tabCount)
+{
+//	// get the joint name
+//	std::string jointName = pNode->LclTranslation.GetParent().GetName();
+//	FbxAnimCurve *pCurve = nullptr;
+//
+//	if (!m_bFoundSbmMetadata)
+//	{
+//		// if it has this meta data property, then it has all the others,
+//		// so parse them out save them
+//		FbxProperty prop = pNode->FindProperty("readyTime");
+//		if (prop.IsValid())
+//		{
+//			PrintMetaData(pNode);
+//			m_bFoundSbmMetadata = true;
+//		}
+//	}
+//
+//	if (pNode->GetNodeAttribute() != NULL && pNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+//	{
+//		memset(m_Buffer, 0, BUFFER_SIZE);
+//		for (int i = 0; i < tabCount; i++)
+//		{
+//			strcat_s(m_Buffer, BUFFER_SIZE, "  ");
+//		}
+//
+//		Print("%s%s: ", m_Buffer, jointName.c_str());
+//
+//		// transformation data
+//		fbxDouble3 data = pNode->LclTranslation.Get();
+//		Print("%sLcl Pos: x: %f   y: %f   z: %f", m_Buffer, data.mData[0], data.mData[1], data.mData[2]);
+//
+//		data = pNode->LclRotation.Get();
+//		Print("%sLcl Rot: x: %f   y: %f   z: %f", m_Buffer, data.mData[0], data.mData[1], data.mData[2]);
+//
+//		data = pNode->PreRotation.Get();
+//		Print("%sPre Rot: x: %f   y: %f   z: %f", m_Buffer, data.mData[0], data.mData[1], data.mData[2]);
+//
+//		// smartbody channel data
+//		bool hasSbmX = false, hasSbmY = false, hasSbmZ = false, hasSbmQuat = false;
+//		PrintProperty<bool>(pNode, "SbodyPosX", hasSbmX, eBOOL1);
+//		PrintProperty<bool>(pNode, "SbodyPosY", hasSbmY, eBOOL1);
+//		PrintProperty<bool>(pNode, "SbodyPosZ", hasSbmZ, eBOOL1);
+//		PrintProperty<bool>(pNode, "SbodyQuat", hasSbmQuat, eBOOL1);
+//
+//		if (m_bPrintAnimationData)
+//		{
+//			if (hasSbmX)
+//			{
+//				// x pos data
+//				pCurve = pNode->LclTranslation.GetCurve<KFbxAnimCurve>(pAnimLayer, FBXSDK_CURVENODE_COMPONENT_X FCURVENODE_T_X);
+//				ParseKeyData(pCurve, jointName + "Xpos ");
+//			}
+//
+//			if (hasSbmY)
+//			{
+//				// y pos data
+//				pCurve = pNode->LclTranslation.GetCurve<KFbxAnimCurve>(pAnimLayer, KFCURVENODE_T_Y);
+//				ParseKeyData(pCurve, jointName + "Ypos ");
+//			}
+//
+//			if (hasSbmZ)
+//			{
+//				// z pos data
+//				pCurve = pNode->LclTranslation.GetCurve<KFbxAnimCurve>(pAnimLayer, KFCURVENODE_T_Z);
+//				ParseKeyData(pCurve, jointName + "Zpos ");
+//			}
+//
+//			if (hasSbmQuat)
+//			{
+//				// x rot data
+//				pCurve = pNode->LclRotation.GetCurve<KFbxAnimCurve>(pAnimLayer, KFCURVENODE_R_X);
+//				ParseKeyData(pCurve, jointName + "Xrot ");
+//
+//				// y rot data
+//				pCurve = pNode->LclRotation.GetCurve<KFbxAnimCurve>(pAnimLayer, KFCURVENODE_R_Y);
+//				ParseKeyData(pCurve, jointName + "Yrot ");
+//
+//				// z rot data
+//				pCurve = pNode->LclRotation.GetCurve<KFbxAnimCurve>(pAnimLayer, KFCURVENODE_R_Z);
+//				ParseKeyData(pCurve, jointName + "Zrot ");
+//}
+//	  }
+//
+//		Print("\n");
+//   }
+//
+//	int childCount = pNode->GetChildCount();
+//	for (int i = 0; i < childCount; i++)
+//	{
+//		ParseAnimationRecursive(pAnimLayer, pNode->GetChild(i), tabCount + 1);
+//	}
+}
+
+void FBXParser::ParseKeyData(const FbxAnimCurve* pCurve, const FbxString& channelName)
+{
+	if (!pCurve)
+	{
+		return;
+	}
+
+	// create a new FBXAnimData and store it
+	AnimData* pNewAnimData = new AnimData();
+	pNewAnimData->m_stName = channelName;
+
+	int numKeys = pCurve->KeyGetCount();
+	cout << "key : ";
+	for (int i = 0; i < numKeys; i++)
+	{
+		FbxAnimCurveKey key = pCurve->KeyGet(i);
+		// the time at which the data takes places
+		FbxTime time = key.GetTime();
+		const FbxLongLong t = time.Get();
+
+		// the key channel transformation data
+		float value = key.GetValue();
+		//key.Get
+		pNewAnimData->m_vcKeyFrameTime.push_back((float)t / 46186158000.0f);
+		pNewAnimData->m_vcKeyFrameData.push_back(value);
+		cout << value << ", ";
+	}
+	cout << endl << endl;
+	m_vcAnimData.push_back(pNewAnimData);
 }
 
 

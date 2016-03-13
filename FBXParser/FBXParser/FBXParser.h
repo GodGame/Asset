@@ -54,6 +54,13 @@ struct Object
 	vector<FbxMesh*> m_pFbxMeshes;
 };
 
+struct AnimData
+{
+	FbxString m_stName;
+	vector<float> m_vcKeyFrameTime;
+	vector<float> m_vcKeyFrameData;
+};
+
 enum eTextureType
 {
 	NONE = -1,
@@ -72,6 +79,7 @@ class FBXParser
 
 	FbxImporter * m_pImporter;
 
+	FbxArray<FbxString*> m_stNameArray;
 	FbxAnimLayer * m_pAnimLayer;
 	//vector<FbxTime> m_tStart;
 	FbxTime m_tStart;
@@ -81,6 +89,7 @@ class FBXParser
 	FbxTime m_tAnimationLength;
 
 	Object m_obj;
+	vector<AnimData*> m_vcAnimData;
 
 public:
 	FBXParser();
@@ -100,6 +109,8 @@ public:
 
 	void SetAnimation();
 	void LoadAnimation();
+
+	void GetChildAnimation(FbxNode * pNode, FbxTime nTime);
 
 public:
 	void MeshRead(int MeshIndex);
@@ -121,6 +132,13 @@ public: // Ani
 		FbxAMatrix& pGlobalPosition, FbxPose* pPose);
 
 	void AnimateSkeleton(FbxMesh * pMesh, FbxNode* pNode, FbxAMatrix& pParentGlobalPosition, FbxAMatrix& pGlobalPosition);
+
+public:
+	void ParseAnimations();
+	void ParseAnimationRecursive(FbxAnimStack* pAnimStack, FbxNode* pNode);
+	void ParseAnimationRecursive(FbxAnimLayer* pAnimLayer, FbxNode* pNode, int tabCount);
+	void ParseKeyData(const FbxAnimCurve* pCurve, const FbxString& channelName);
+
 };
 
 #define DESTROY(x) if(x) x->Destroy();
