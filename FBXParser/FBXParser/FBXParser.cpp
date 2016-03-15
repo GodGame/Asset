@@ -27,6 +27,8 @@ ostream& operator<<(ostream& os, XMFLOAT2 & vt)
 
 FBXParser::FBXParser()
 {
+	m_obj.m_nVertices = 0;
+
 	m_pMgr      = nullptr;
 	m_pScene    = nullptr;
 	m_pRootNode = nullptr;
@@ -107,7 +109,10 @@ void FBXParser::Run()
 
 	//VertexRead();
 	for (int i = 0; i < m_obj.m_pFbxMeshes.size(); ++i)
+	{
 		MeshRead(i);
+		m_obj.m_nVertices += m_obj.m_vcMeshes[i].m_vcVertexes.size();
+	}
 
 	TextureRead();
 
@@ -143,11 +148,11 @@ void FBXParser::Setting()
 		FbxNode * pNode = m_pRootNode->GetChild(i);
 		FbxNodeAttribute::EType type = (pNode->GetNodeAttribute())->GetAttributeType();
 
-		if (type == FbxNodeAttribute::eMesh)
-		{
+		//if (type == FbxNodeAttribute::eMesh)
+		//{
 			m_obj.m_pFbxMeshes.push_back(pNode->GetMesh());
 			m_obj.m_vcMeshes.push_back(Mesh());
-		}
+		//}
 	}
 }
 
@@ -428,20 +433,20 @@ void FBXParser::FileOut()
 void FBXParser::FileOutObject()
 {
 	wstring FileName;
-	bool bUseTangent = false;
+	bool bUseTangent = true;//false;
 
 	for (auto it = m_stName.begin(); it != m_stName.end() - 4; ++it)
 	{
 		FileName.push_back(*it);
 	}
 
-	if (m_obj.m_vcMeshes.size() > 0)
-	{
-		if (m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.x != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.y != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.z != 0)
-		{
-			bUseTangent = true;
-		}
-	}
+	//if (m_obj.m_vcMeshes.size() > 0)
+	//{
+	//	if (m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.x != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.y != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.z != 0)
+	//	{
+	//		bUseTangent = true;
+	//	}
+	//}
 
 	{
 		wstring infoName;
@@ -537,13 +542,22 @@ void FBXParser::FileOutObject()
 
 void FBXParser::LoadAnimation()
 {
+	int nObjects = m_pRootNode->GetSrcObjectCount();
+	cout << "Child Num : " << nObjects << "\t";
+	cout << "Mesh Num : " << m_obj.m_vcMeshes.size() << endl;
+
+	for (int i = 0; i < nObjects; ++i)
+	{
+		if (m_obj.m_vcMeshes[i].m_vcVertexes.size() > 0)
+			GetFbxSkinData(i);
+	}
 
 	for (FbxTime nTime = m_tStart; nTime <= m_tStop; nTime += m_tFrameTime)
 	{
 		cout << "Time : " << nTime.GetMilliSeconds() << endl;
-		cout << "Child Num : " << m_pRootNode->GetSrcObjectCount() << endl;
 
-		for (int i = 0; i < m_pRootNode->GetSrcObjectCount(); ++i)
+
+		for (int i = 0; i < nObjects; ++i)
 		{
 			FbxObject * pfbxObject = m_pRootNode->GetSrcObject(i);
 			FbxNode * pThisNode = m_pRootNode->GetChild(i);
@@ -587,14 +601,12 @@ void FBXParser::GetChildAnimation(FbxNode * pParentNode, FbxTime nTime)
 
 	FbxAMatrix lGeometryOffset[20];
 	FbxAMatrix lGlobalOffPosition[20];
-	FbxPose * lPose[20];
-	for (UINT i = 0; i < 20; ++i)
-	{
-		lPose[i] = NULL;
-	}
+	vector<FbxNode*> lPose;
 
 	int nObjects = pParentNode->GetSrcObjectCount();
 	cout << "자식의 개수 : " << nObjects << endl;
+
+	FbxMesh * pTempMesh = pParentNode->GetMesh();
 
 	for (int i = 0; i < nObjects; ++i)
 	{
@@ -604,13 +616,11 @@ void FBXParser::GetChildAnimation(FbxNode * pParentNode, FbxTime nTime)
 
 		GetChildAnimation(pChildNode, nTime);
 
-		FbxMesh * pMesh = nullptr;//pChildNode->GetMesh();
-
-		//			VBOMesh* pMesh = GetVBOMesh(i);
+		FbxMesh * pMesh = nullptr;
 		pNode.push_back(pChildNode);
 
-		lPose[i] = NULL;
-		FbxAMatrix lGlobalPosition = GetGlobalPosition(pNode[i], nTime, lPose[i], &lDummyGlobalPosition[i]);
+		//lPose[i] = NULL;
+		FbxAMatrix lGlobalPosition = GetGlobalPosition(pNode[i], nTime, nullptr/*lPose[i]*/, &lDummyGlobalPosition[i]);
 
 		FbxNodeAttribute* lNodeAttribute = pNode[i]->GetNodeAttribute();
 
@@ -621,20 +631,104 @@ void FBXParser::GetChildAnimation(FbxNode * pParentNode, FbxTime nTime)
 			lGeometryOffset[i] = GetGeometry(pNode[i]);
 			lGlobalOffPosition[i] = lGlobalPosition * lGeometryOffset[i];
 
-			AnimateNode(pMesh, pNode[i], nTime, /*mCurrentAnimLayer*/m_pAnimLayer, lDummyGlobalPosition[i], lGlobalOffPosition[i], lPose[i]);
+			AnimateNode(pMesh, pChildNode, nTime, /*mCurrentAnimLayer*/m_pAnimLayer, lDummyGlobalPosition[i], lGlobalOffPosition[i], nullptr/*lPose[i]*/);
 		}
 	}
 
 	for (auto it = pNode.begin(); it != pNode.end(); ++it)
-	{
 		(*it)->Destroy();
-	}
+	pNode.clear();
 
-	for (UINT i = 0; i < 20; ++i)
-	{
-		if (lPose[i] != NULL) lPose[i]->Destroy();
-	}
+	for (auto it = lPose.begin(); it != lPose.end(); ++it)
+		(*it)->Destroy();
+	lPose.clear();
 	
+}
+
+void FBXParser::GetFbxSkinData(int index)
+{
+	FbxMesh * pMesh = m_obj.m_pFbxMeshes[index];
+	int nDeformers = pMesh->GetDeformerCount(FbxDeformer::eSkin);
+
+	SkinDeformer * pSkinDeformer = nullptr;
+
+	XMFLOAT4X4 temp;
+	cout << "디포머의 수 : " << nDeformers << endl;
+	for (int i = 0; i < nDeformers; ++i)
+	{
+		FbxSkin * currSkin = reinterpret_cast<FbxSkin*>(pMesh->GetDeformer(i, FbxDeformer::eSkin));
+		FbxVertexCacheDeformer * pVertexCacheDeformer = reinterpret_cast<FbxVertexCacheDeformer*>(pMesh->GetDeformer(i, FbxDeformer::eVertexCache));
+
+		int lBlendShapeDeformerCount = pMesh->GetDeformerCount(FbxDeformer::eBlendShape);
+		for (int lBlendShapeIndex = 0; lBlendShapeIndex < lBlendShapeDeformerCount; ++lBlendShapeIndex)
+		{
+			FbxBlendShape* lBlendShape = (FbxBlendShape*)pMesh->GetDeformer(lBlendShapeIndex, FbxDeformer::eBlendShape);
+			int lBlendShapeChannelCount = lBlendShape->GetBlendShapeChannelCount();
+			for (int lChannelIndex = 0; lChannelIndex < lBlendShapeChannelCount; ++lChannelIndex)
+			{
+				FbxBlendShapeChannel* lChannel = lBlendShape->GetBlendShapeChannel(lChannelIndex);
+
+				if (lChannel)
+				{
+					cout << "Channel 존재";
+				}
+			}
+		}
+
+		pSkinDeformer = new SkinDeformer();	
+		pSkinDeformer->m_vcSkin.push_back(currSkin);
+
+		int nPartVertexes = m_obj.m_vcMeshes[index].m_vcVertexes.size();
+
+		pSkinDeformer->m_vcInfluences.resize(nPartVertexes, 0);
+		
+		ClusterID id;
+		ClusterWeights wt;
+		pSkinDeformer->m_vcClusterWeights.resize(nPartVertexes, wt);
+		pSkinDeformer->m_vcClusterID.resize(nPartVertexes, id);
+		
+		if (pVertexCacheDeformer)
+		{
+			int nCacheSrcObj = pVertexCacheDeformer->GetSrcObjectCount();
+			int nCacheDstObj = pVertexCacheDeformer->GetDstObjectCount();
+
+			cout << "Cache Src : " << nCacheSrcObj << "\t" << "Cache Dest : " << nCacheDstObj << endl;
+		}
+
+		int nClusters = currSkin->GetClusterCount();
+		cout << "클러스터의 수 : " << nClusters << endl;
+		if (currSkin && nClusters > 0)
+		{
+			for (int j = 0; j < nClusters; ++j)
+			{
+				ZeroMemory(&temp, sizeof(temp));
+
+				FbxCluster * pfbxCluster = currSkin->GetCluster(j);
+				if (!pfbxCluster->GetLink()) continue;
+
+				int nIndices = pfbxCluster->GetControlPointIndicesCount();
+				int * pnControlPointIndices = pfbxCluster->GetControlPointIndices();
+				double * pfControlPointWeights = pfbxCluster->GetControlPointWeights();
+
+				for (int k = 0; k < nIndices; ++k)
+				{
+					// 모든 메쉬를 합한 버텍스 아이디일까? 아니면  파트별 아이디일까?
+					int nVertexID = pnControlPointIndices[k];
+					if ((nVertexID < 0) || (nVertexID >= m_obj.m_nVertices)) continue;
+					float fWeight = static_cast<float>(pfControlPointWeights[k]);
+
+					int & influence = pSkinDeformer->m_vcInfluences[nVertexID];
+
+					pSkinDeformer->m_vcClusterID[nVertexID].data[influence] = j;
+					pSkinDeformer->m_vcClusterWeights[nVertexID].data[influence] = j;
+					pSkinDeformer->m_vcInfluences[nVertexID]++;
+				}
+
+			} // for j
+		} // if currskin
+
+		if (pSkinDeformer) m_obj.m_vcSkinDeformer.push_back(pSkinDeformer);
+	}// for i
 }
 
 void FBXParser::SetAnimation()
@@ -643,7 +737,7 @@ void FBXParser::SetAnimation()
 
 	m_pScene->FillAnimStackNameArray(m_stNameArray);
 
-	cout << m_stNameArray.Size() << endl;
+	cout << "Name Size : " << m_stNameArray.Size() << endl;
 	for (int i = 0; i < m_stNameArray.Size(); ++i)
 	{
 		if (m_stNameArray[i]->Compare(m_pScene->ActiveAnimStackName.Get()) == 0)
@@ -705,11 +799,26 @@ void FBXParser::SetAnimation()
 
 }
 
-void FBXParser::MeshRead(int MeshIndex)
+void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 {
-	FbxMesh * pMesh = m_obj.m_pFbxMeshes[MeshIndex];
-	Mesh * pDataMesh = &m_obj.m_vcMeshes[MeshIndex];
+	FbxMesh * pMesh = pFbxMesh;
+	Mesh * pDataMesh = pCustomMesh;
 
+	int lBlendShapeDeformerCount = pMesh->GetDeformerCount(FbxDeformer::eBlendShape);
+	for (int lBlendShapeIndex = 0; lBlendShapeIndex < lBlendShapeDeformerCount; ++lBlendShapeIndex)
+	{
+		FbxBlendShape* lBlendShape = (FbxBlendShape*)pMesh->GetDeformer(lBlendShapeIndex, FbxDeformer::eBlendShape);
+		int lBlendShapeChannelCount = lBlendShape->GetBlendShapeChannelCount();
+		for (int lChannelIndex = 0; lChannelIndex < lBlendShapeChannelCount; ++lChannelIndex)
+		{
+			FbxBlendShapeChannel* lChannel = lBlendShape->GetBlendShapeChannel(lChannelIndex);
+
+			if (lChannel)
+			{
+				cout << "Channel 존재";
+			}
+		}
+	}
 	const int lPolygonCount = pMesh->GetPolygonCount();
 
 	bool mHasNormal, mHasUV, mAllByControlPoint;
@@ -871,7 +980,7 @@ void FBXParser::MeshRead(int MeshIndex)
 			Vertex tempVertex;
 
 			lCurrentVertex = lControlPoints[lIndex];
-
+			
 			SetFbxFloatToXmFloat(tempVertex.xmf3Pos, lCurrentVertex);
 //			tempVertex.xmf3Pos.x = static_cast<float>(lCurrentVertex[0]);
 //			tempVertex.xmf3Pos.z = static_cast<float>(lCurrentVertex[1]);
@@ -1110,6 +1219,15 @@ void FBXParser::MeshRead(int MeshIndex)
 
 		//tempTangent.push_back(tangent);
 	}
+}
+
+void FBXParser::MeshRead(int iIndex)
+{
+	FbxMesh * pMesh = m_obj.m_pFbxMeshes[iIndex];
+	Mesh * pDataMesh = &m_obj.m_vcMeshes[iIndex];
+
+	if (pMesh && pDataMesh)
+		MeshRead(pMesh, pDataMesh);
 }
 
 void FBXParser::NormalRead(FbxMesh * pMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3 & outNormal, XMFLOAT3& outTangent)
@@ -1370,7 +1488,17 @@ void FBXParser::AnimateNode(FbxMesh * pMesh, FbxNode * pNode, FbxTime & pTime, F
 		else if (lNodeAttribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
 		{
 			cout << "이것은 Skeleton이다!!";
-			AnimateSkeleton(pMesh, pNode, pParentGlobalPosition, pGlobalPosition);
+			FbxMesh * pFbxMesh = pNode->GetMesh();
+			if (pFbxMesh)
+			{
+				Mesh * pDataMesh = new Mesh();
+				MeshRead(pFbxMesh, pDataMesh);
+				cout << "Total Size : " << pDataMesh->m_vcVertexes.size();
+				delete pDataMesh;
+			}
+
+
+			AnimateSkeleton(pFbxMesh, pNode, pParentGlobalPosition, pGlobalPosition);
 		}
 	}
 
@@ -1472,7 +1600,7 @@ void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & p
 		// 애니매이션 레이어
 		FbxAnimStack * lCurrentAnimationStack = m_pScene->FindMember<FbxAnimStack>(m_stNameArray[i]->Buffer());
 		m_pAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>();
-		
+
 		int nAnimLayers = lCurrentAnimationStack->GetMemberCount(); // m_pAnimLayer->GetMemberCount(); 
 		cout << "총 스택 수 : " << lCurrentAnimationStack->GetMemberCount() << endl;
 		cout << "총 레이어 수 : " << m_pAnimLayer->GetMemberCount() << endl;
@@ -1481,9 +1609,15 @@ void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & p
 		for (int j = 0; j < nAnimLayers; ++j)
 		{
 			FbxAnimLayer * pfbxAnimLayer = lCurrentAnimationStack->GetMember<FbxAnimLayer>(j);//m_pAnimLayer->GetMember<FbxAnimLayer>(j);// 
+			if (pfbxAnimLayer)
+			{
+				if (pfbxAnimLayer->GetBlendModeBypass(EFbxType::eFbxBool)) 
+					cout << "Blend 모드" << endl;
+			}
 			// 애니매이션 커브(노드 속성)
 			FbxString jointName = pNode->LclTranslation.GetParent().GetName();
 			cout << "Name : " << jointName << endl;
+			cout << "Weight : " << pfbxAnimLayer->Weight.Get();
 
 			FbxAnimCurve * pfbxAnimCurve = nullptr;
 			pfbxAnimCurve = pNode->LclTranslation.GetCurve(pfbxAnimLayer, "X");
@@ -1523,16 +1657,16 @@ void FBXParser::AnimateSkeleton(FbxMesh * pMesh, FbxNode * pNode, FbxAMatrix & p
 		FbxTime currTime;
 		currTime.SetFrame(i, FbxTime::eFrames24);
 
-		cout << "Parent Global : " << endl;
-		cout << pParentGlobalPosition.mData[0] << endl;
-		cout << pParentGlobalPosition.mData[1] << endl;
-		cout << pParentGlobalPosition.mData[2] << endl;
-		cout << pParentGlobalPosition.mData[3] << endl << endl;
+		//cout << "Parent Global : " << endl;
+		//cout << pParentGlobalPosition.mData[0] << endl;
+		//cout << pParentGlobalPosition.mData[1] << endl;
+		//cout << pParentGlobalPosition.mData[2] << endl;
+		//cout << pParentGlobalPosition.mData[3] << endl << endl;
 
-		cout << "This Global : " << pGlobalPosition.mData[0] << endl;
-		cout << pGlobalPosition.mData[1] << endl;
-		cout << pGlobalPosition.mData[2] << endl;
-		cout << pGlobalPosition.mData[3] << endl;
+		//cout << "This Global : " << pGlobalPosition.mData[0] << endl;
+		//cout << pGlobalPosition.mData[1] << endl;
+		//cout << pGlobalPosition.mData[2] << endl;
+		//cout << pGlobalPosition.mData[3] << endl;
 
 		//*currAnim = new Keyframe();
 		//(*currAnim)->mFrameNum = i;

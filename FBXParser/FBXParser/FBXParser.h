@@ -47,11 +47,50 @@ struct Mesh
 	}
 };
 
+struct ClusterID
+{
+	int data[8];
+	ClusterID()
+	{
+		ZeroMemory(data, sizeof(int) * 8);
+	}
+};
+
+struct ClusterWeights
+{
+	float data[8];
+	ClusterWeights()
+	{
+		ZeroMemory(data, sizeof(float) * 8);
+	}
+};
+
+struct SkinDeformer
+{
+	vector<FbxSkin *> m_vcSkin;
+
+	//int m_nClusters;
+	vector<XMFLOAT4X4> m_vcClusterTransform;
+	vector<int> m_vcInfluences;
+	vector<ClusterID> m_vcClusterID;
+	vector<ClusterWeights> m_vcClusterWeights;
+};
+
 struct Object
 {
 	vector<wstring> m_vcTextureNames;
+
+	int m_nVertices;
 	vector<Mesh> m_vcMeshes;
 	vector<FbxMesh*> m_pFbxMeshes;
+	vector<SkinDeformer*> m_vcSkinDeformer;
+
+	~Object()
+	{
+		for (auto it = m_vcSkinDeformer.begin(); it != m_vcSkinDeformer.end(); ++it)
+			delete *it;
+		m_vcSkinDeformer.clear();
+	}
 };
 
 struct AnimData
@@ -89,6 +128,7 @@ class FBXParser
 	FbxTime m_tAnimationLength;
 
 	Object m_obj;
+//	SkinDeformer m_SkinDeformer;
 	vector<AnimData*> m_vcAnimData;
 
 public:
@@ -112,7 +152,10 @@ public:
 
 	void GetChildAnimation(FbxNode * pNode, FbxTime nTime);
 
+	void GetFbxSkinData(int index);
+
 public:
+	void MeshRead(FbxMesh * pMesh, Mesh * pDataMesh);
 	void MeshRead(int MeshIndex);
 	void NormalRead(FbxMesh * pMesh, int inCtrlPointIndex, int inVertexCounter, XMFLOAT3& outNormal, XMFLOAT3& outTangent);
 	void UVRead(FbxMesh * pMesh, int inCtrlPointIndex, int inUVIndex, XMFLOAT2 & outUV);
