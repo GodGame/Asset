@@ -648,6 +648,12 @@ void FBXParser::GetChildAnimation(FbxNode * pParentNode, FbxTime nTime)
 void FBXParser::GetFbxSkinData(int index)
 {
 	FbxMesh * pMesh = m_obj.m_pFbxMeshes[index];
+	GetFbxSkinData(pMesh, m_obj.m_vcMeshes[index].m_vcVertexes.size());
+}
+
+void FBXParser::GetFbxSkinData(FbxMesh * pFbxMesh, int nVertexesSize)
+{
+	FbxMesh * pMesh = pFbxMesh;
 	int nDeformers = pMesh->GetDeformerCount(FbxDeformer::eSkin);
 
 	SkinDeformer * pSkinDeformer = nullptr;
@@ -675,18 +681,12 @@ void FBXParser::GetFbxSkinData(int index)
 			}
 		}
 
-		pSkinDeformer = new SkinDeformer();	
+		pSkinDeformer = new SkinDeformer();
 		pSkinDeformer->m_vcSkin.push_back(currSkin);
 
-		int nPartVertexes = m_obj.m_vcMeshes[index].m_vcVertexes.size();
+		int nPartVertexes = nVertexesSize;
+		pSkinDeformer->resize(nPartVertexes); 
 
-		pSkinDeformer->m_vcInfluences.resize(nPartVertexes, 0);
-		
-		ClusterID id;
-		ClusterWeights wt;
-		pSkinDeformer->m_vcClusterWeights.resize(nPartVertexes, wt);
-		pSkinDeformer->m_vcClusterID.resize(nPartVertexes, id);
-		
 		if (pVertexCacheDeformer)
 		{
 			int nCacheSrcObj = pVertexCacheDeformer->GetSrcObjectCount();
@@ -843,14 +843,7 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 				for (int lPolygonIndex = 0; lPolygonIndex < lPolygonCount; ++lPolygonIndex)
 				{
 					const int lMaterialIndex = lMaterialIndice->GetAt(lPolygonIndex);
-					//if (mSubMeshes.GetCount() < lMaterialIndex + 1)
-					//{
-					//	mSubMeshes.Resize(lMaterialIndex + 1);
-					//}
-					//if (mSubMeshes[lMaterialIndex] == NULL)
-					//{
-					//	mSubMeshes[lMaterialIndex] = new SubMesh;
-					//}
+
 					UINT sz = pDataMesh->m_vcSubMeshes.size();
 					if (sz < lMaterialIndex + 1)
 					{
@@ -948,6 +941,9 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 
 	// Populate the array with vertex attribute, if by control point.
 	const FbxVector4 * lControlPoints = pMesh->GetControlPoints();
+	cout << "Contorl Name : " << pMesh->GetName() << endl;
+	//GetFbxSkinData(pMesh, pMesh->GetControlPointsCount());
+
 	FbxVector4 lCurrentVertex;
 	FbxVector4 lCurrentNormal;
 	FbxVector4 lCurrentTangent;

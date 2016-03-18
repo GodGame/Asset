@@ -86,16 +86,16 @@ d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(525): warning C4
 d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(529): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
 d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(508): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(205): note: 'fopen' 선언을 참조하십시오.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(681): warning C4267: '초기화 중': 'size_t'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(651): warning C4267: '인수': 'size_t'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
 d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(723): warning C4244: '=': 'int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(854): warning C4267: '초기화 중': 'size_t'에서 'UINT'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(855): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(873): warning C4267: '초기화 중': 'size_t'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(873): warning C4267: '초기화 중': 'size_t'에서 'const int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1154): warning C4267: '초기화 중': 'size_t'에서 'UINT'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1155): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1192): warning C4244: '+=': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1193): warning C4244: '+=': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1194): warning C4244: '+=': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1319): warning C4244: '인수': 'fbxsdk::FbxDouble'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(847): warning C4267: '초기화 중': 'size_t'에서 'UINT'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(848): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(866): warning C4267: '초기화 중': 'size_t'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(866): warning C4267: '초기화 중': 'size_t'에서 'const int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1150): warning C4267: '초기화 중': 'size_t'에서 'UINT'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1151): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1188): warning C4244: '+=': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1189): warning C4244: '+=': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1190): warning C4244: '+=': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+d:\study\github\godgame\asset\fbxparser\fbxparser\fbxparser.cpp(1315): warning C4244: '인수': 'fbxsdk::FbxDouble'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
   FBXParser.vcxproj -> D:\study\Github\GodGame\Asset\FBXParser\x64\Debug\FBXParser.exe

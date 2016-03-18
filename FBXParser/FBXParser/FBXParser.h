@@ -74,6 +74,16 @@ struct SkinDeformer
 	vector<int> m_vcInfluences;
 	vector<ClusterID> m_vcClusterID;
 	vector<ClusterWeights> m_vcClusterWeights;
+
+	void resize(int nSize)
+	{
+		ClusterID id;
+		ClusterWeights wt;
+
+		m_vcInfluences.resize(nSize, 0);
+		m_vcClusterID.resize(nSize, id);
+		m_vcClusterWeights.resize(nSize, wt);
+	}
 };
 
 struct Object
@@ -153,6 +163,7 @@ public:
 	void GetChildAnimation(FbxNode * pNode, FbxTime nTime);
 
 	void GetFbxSkinData(int index);
+	void GetFbxSkinData(FbxMesh * pMesh, int nVertexesSize);
 
 public:
 	void MeshRead(FbxMesh * pMesh, Mesh * pDataMesh);
