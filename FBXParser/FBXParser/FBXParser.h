@@ -37,11 +37,22 @@ struct Mesh
 	UINT nIndices;
 
 	vector<Vertex> m_vcVertexes;
+
+	vector<XMFLOAT3> m_vcPos;
+	vector<XMFLOAT3> m_vcNormal;
+	vector<XMFLOAT3> m_vcUV;
+
+
 	vector<USHORT> m_stIndices;
 	vector<SubMesh> m_vcSubMeshes;
 
+	FbxTime mStart, mStop, mCurrentTime, mCache_Start, mCache_Stop;
+
 	Mesh()
 	{
+		mCache_Start = 0;
+		mCache_Stop = 0;
+
 		nTriangles = 0;
 		nIndices = 0;
 	}
@@ -90,10 +101,24 @@ struct Object
 {
 	vector<wstring> m_vcTextureNames;
 
+	bool mAllByControlPoint;
+	bool mHasNormal;
+	bool mHasUV;
+
 	int m_nVertices;
 	vector<Mesh> m_vcMeshes;
 	vector<FbxMesh*> m_pFbxMeshes;
+	FbxArray<FbxPose*> m_pFbxPose;
+
+	FbxAnimLayer*			mCurrentAnimLayer;
 	vector<SkinDeformer*> m_vcSkinDeformer;
+
+	Object()
+	{
+		mHasUV = true;
+		mHasNormal = true;
+		mAllByControlPoint = true;
+	}
 
 	~Object()
 	{
@@ -137,6 +162,8 @@ class FBXParser
 	FbxTime m_tFrameTime;
 	FbxTime m_tAnimationLength;
 
+
+	vector<Vertex> mVertices;
 	Object m_obj;
 //	SkinDeformer m_SkinDeformer;
 	vector<AnimData*> m_vcAnimData;
@@ -144,6 +171,7 @@ class FBXParser
 public:
 	FBXParser();
 	~FBXParser();
+
 
 public:
 	bool Initialize(const char * pstr);
@@ -154,10 +182,12 @@ public:
 	void TextureRead();
 	eTextureType CheckTextureType(const wstring & wstrName);
 
-	void FileOut();
 	void FileOutObject();
+	void CalculateTangent();
+	void FileOutAnimatedMeshes(int iFileNum, int index);
 
 	void SetAnimation();
+	void SetCurrentAnimStack(int count, int pIndex);
 	void LoadAnimation();
 
 	void GetChildAnimation(FbxNode * pNode, FbxTime nTime);
@@ -179,12 +209,27 @@ public: // Ani
 	FbxAMatrix GetPoseMatrix(FbxPose* pPose, int pNodeIndex);
 	FbxAMatrix GetGeometry(FbxNode* pNode);
 
-	void AnimateNode(FbxMesh * pMesh, FbxNode* pNode, FbxTime& pTime, FbxAnimLayer* pAnimLayer,
+	void AnimateNode(Mesh * pMesh, FbxNode* pNode, FbxTime& pTime, FbxAnimLayer* pAnimLayer,
 		FbxAMatrix& pParentGlobalPosition, FbxAMatrix& pGlobalPosition, FbxPose* pPose);
 
-	void AnimateMesh(ID3D11Device* pd3dDevice, FbxMesh* pMesh, FbxNode* pNode, FbxTime& pTime, FbxAnimLayer* pAnimLayer,
+public:
+	void AnimateMesh(Mesh* pMesh, FbxNode* pNode, FbxTime& pTime, FbxAnimLayer* pAnimLayer,
 		FbxAMatrix& pGlobalPosition, FbxPose* pPose);
 
+	void ReadVertexCacheData(FbxMesh* pMesh, FbxTime& pTime, FbxVector4* pVertexArray);
+	void ComputeShapeDeformation(FbxMesh* pMesh, FbxTime& pTime, FbxAnimLayer * pAnimLayer, FbxVector4* pVertexArray);
+	// Deform the vertex array according to the links contained in the mesh and the skinning type.
+	void ComputeSkinDeformation(Mesh * pObjectMesh, FbxAMatrix& pGlobalPosition, FbxMesh* pMesh,
+		FbxTime& pTime, FbxVector4* pVertexArray, FbxPose* pPose);
+	void ComputeClusterDeformation(FbxAMatrix& pGlobalPosition,
+		FbxMesh* pMesh,
+		FbxCluster* pCluster,
+		FbxAMatrix& pVertexTransformMatrix,
+		FbxTime pTime,
+		FbxPose* pPose);
+
+
+public:
 	void AnimateSkeleton(FbxMesh * pMesh, FbxNode* pNode, FbxAMatrix& pParentGlobalPosition, FbxAMatrix& pGlobalPosition);
 
 public:
