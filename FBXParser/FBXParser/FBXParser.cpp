@@ -27,6 +27,7 @@ ostream& operator<<(ostream& os, XMFLOAT2 & vt)
 
 FBXParser::FBXParser()
 {
+	m_bUseAnimatedMesh = false;
 	m_obj.m_nVertices = 0;
 
 	m_pMgr      = nullptr;
@@ -80,6 +81,7 @@ FBXParser::~FBXParser()
 bool FBXParser::Initialize(const char * pstr)
 {
 	m_stName = pstr;
+	for (int i = 0; i < 4; ++i) m_stName.pop_back();
 
 	m_pMgr = FbxManager::Create();
 	FbxIOSettings * pfbxIOSettings = FbxIOSettings::Create(m_pMgr, IOSROOT);
@@ -119,7 +121,7 @@ void FBXParser::Run()
 	SetAnimation();
 	LoadAnimation();
 
-	FileOutObject();
+	if(!m_bUseAnimatedMesh) FileOutObject();
 }
 
 void FBXParser::Setting()
@@ -352,11 +354,6 @@ void FBXParser::FileOutObject()
 	wstring FileName;
 	bool bUseTangent = true;//false;
 
-	for (auto it = m_stName.begin(); it != m_stName.end() - 4; ++it)
-	{
-		FileName.push_back(*it);
-	}
-
 	//if (m_obj.m_vcMeshes.size() > 0)
 	//{
 	//	if (m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.x != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.y != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.z != 0)
@@ -538,10 +535,9 @@ void FBXParser::CalculateTangent()
 
 void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 {
-	string infoname = ("info");
-	string binname = ("data");
-	string txtname = (".txt");
+	string txtname = (".info");
 	string binextend = (".ad");
+	
 	cout << iFileNum << "파일의 " << index << "번째 파일 출력" << endl;
 	int vertCount = 0;
 	for (UINT i = 0; i < m_obj.m_vcMeshes.size(); ++i)
@@ -563,30 +559,64 @@ void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 	}
 
 	CalculateTangent();
+	UINT nTextures = m_obj.m_vcTextureNames.size();
 
 	char temp[20];
-	ofstream file;
+	
+	wstring fbm = _T(".fbm/");
+	wstring base;
+
+	wofstream file;
 	if (index == 0)
-		file.open(infoname + "_" + string(itoa(iFileNum, temp, 10)) + txtname, ios::trunc);
+	{
+		for (auto it = m_stName.begin(); it != m_stName.end(); ++it)
+			base.push_back(*it);
+
+		base += fbm;
+
+		file.open(m_stName + "_" + string(itoa(iFileNum, temp, 10)) + txtname, ios::trunc);
+		file << "Textures : " << nTextures << endl;
+		for (auto it = m_obj.m_vcTextureNames.begin(); it != m_obj.m_vcTextureNames.end(); ++it)
+		{
+			for (auto baseit = base.begin(); baseit != base.end(); ++baseit)
+				file << *baseit;
+
+			for (auto wcit = it->begin(); wcit != it->end(); ++wcit)
+				file << *wcit;
+			file << endl;
+		}
+		file << endl << endl;
+	}
 	else
-		file.open(infoname + "_" + string(itoa(iFileNum, temp, 10)) + txtname, ios::app);
+		file.open(m_stName + "_" + string(itoa(iFileNum, temp, 10)) + txtname, ios::app);
 
 	file << "Frame : " << index << "번 째 / 정점 수 : " << vertCount << endl;
-
-	for (int i = 0; i < vertCount; ++i)
+	file << "Pow / Normal / Tex" << endl;
+	for (int i = 0; i < 10; ++i)
 	{
-		file << "Pos " << mVertices[i].xmf3Pos.x << ", " << mVertices[i].xmf3Pos.y << ", " << mVertices[i].xmf3Pos.z << "\t\t";
-		file << "nor " << mVertices[i].xmf3Normal.x << ", " << mVertices[i].xmf3Normal.y << ", " << mVertices[i].xmf3Normal.z << "\t\t";
-		file << "Tex " << mVertices[i].xmf2TexCoord.x << ", " << mVertices[i].xmf2TexCoord.y << endl;
+		file <<  mVertices[i].xmf3Pos.x << ", " << mVertices[i].xmf3Pos.y << ", " << mVertices[i].xmf3Pos.z << "\t\t";
+		file <<  mVertices[i].xmf3Normal.x << ", " << mVertices[i].xmf3Normal.y << ", " << mVertices[i].xmf3Normal.z << "\t\t";
+		file <<  mVertices[i].xmf2TexCoord.x << ", " << mVertices[i].xmf2TexCoord.y << endl;
 	}
-	file << endl << endl;
+	file << "...." << endl << endl;
 	file.close();
 
 	FILE * bin;
 	if (index == 0)
-		bin = fopen((binname + "_" + string(itoa(iFileNum, temp, 10)) + binextend).c_str(), "wb");
+	{
+		bin = fopen((m_stName + "_" + string(itoa(iFileNum, temp, 10)) + binextend).c_str(), "wb");
+		fwrite(&nTextures, sizeof(__int32), 1, bin);
+
+		for (int i = 0; i < nTextures; ++i)
+		{
+			__int32 sz = base.size() + m_obj.m_vcTextureNames[i].size();
+			fwrite(&sz, sizeof(__int32), 1, bin);
+			fwrite(&base[0], sizeof(wchar_t), base.size(), bin);
+			fwrite(&(m_obj.m_vcTextureNames[i][0]), sizeof(wchar_t), m_obj.m_vcTextureNames[i].size(), bin);
+		}
+	}
 	else
-		bin = fopen((binname + "_" + string(itoa(iFileNum, temp, 10)) + binextend).c_str(), "ab");
+		bin = fopen((m_stName + "_" + string(itoa(iFileNum, temp, 10)) + binextend).c_str(), "ab");
 
 	fwrite(&index, sizeof(__int32), 1, bin);
 	fwrite(&vertCount, sizeof(__int32), 1, bin);
@@ -601,7 +631,7 @@ void FBXParser::LoadAnimation()
 	//int nObjects = m_pRootNode->GetSrcObjectCount();0
 	//cout << "Child Num : " << nObjects << "\t";
 	//cout << "Mesh Num : " << m_obj.m_vcMeshes.size() << endl;
-	cout << nAniNum + 1 << "번째 애니매이션" << endl;
+	cout << ++nAniNum << "번째 애니매이션" << endl;
 
 	FbxAMatrix lDummyGlobalPosition[20];
 	FbxAMatrix lGeometryOffset[20];
@@ -639,7 +669,7 @@ void FBXParser::LoadAnimation()
 		}
 		//CreateVBBuffer(pd3dDevice, index);
 		//CalculateTangent();
-		FileOutAnimatedMeshes(++nAniNum, index++);
+		if (m_bUseAnimatedMesh) FileOutAnimatedMeshes(nAniNum, index++);
 	}
 
 	//Init(pd3dDevice);
@@ -1629,6 +1659,7 @@ void FBXParser::AnimateNode(Mesh * pMesh, FbxNode * pNode, FbxTime & pTime, FbxA
 	{
 		if (lNodeAttribute->GetAttributeType() == FbxNodeAttribute::eMesh)
 		{
+			m_bUseAnimatedMesh = true;
 			//cout << "이것은 Animate Mesh다!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
 			AnimateMesh(pMesh, pNode, pTime, pAnimLayer, pGlobalPosition, pPose);
 		}

@@ -14,7 +14,7 @@ struct Vertex
 	XMFLOAT2 xmf2TexCoord;
 	XMFLOAT3 xmf3Normal;
 	XMFLOAT3 xmf3Tangent;
-
+	
 	Vertex()
 	{
 		ZeroMemory(&xmf3Pos, sizeof(xmf3Pos));
@@ -146,6 +146,8 @@ enum eTextureType
 
 class FBXParser
 {
+	bool m_bUseAnimatedMesh;
+
 	string        m_stName;
 	FbxManager  * m_pMgr;
 	FbxScene    * m_pScene;
