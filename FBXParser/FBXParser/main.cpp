@@ -9,6 +9,7 @@ int main()
 		cout << endl << "파일 이름을 입력해주세요 : ";
 		cin >> fileName;
 
+
 		bool bCheck = false;
 		FBXParser parser;
 		bCheck = parser.Initialize(fileName);
@@ -17,7 +18,7 @@ int main()
 			cout << "오류가 있습니다. " << endl;
 			break;
 		}
-
+		parser.SetOption();
 		parser.Run();
 		cout << endl;
 	}

@@ -28,6 +28,8 @@ ostream& operator<<(ostream& os, XMFLOAT2 & vt)
 FBXParser::FBXParser()
 {
 	m_bUseAnimatedMesh = false;
+	m_bUseSaveTangent = true;
+	m_bFixCenter = false;
 	m_obj.m_nVertices = 0;
 
 	m_pMgr      = nullptr;
@@ -78,6 +80,51 @@ FBXParser::~FBXParser()
 	m_vcAnimData.clear();
 }
 
+void FBXParser::SetOption()
+{
+	int inum;
+
+	XMStoreFloat4x4(&xmTransform, XMMatrixIdentity());
+	cout << "옵션 선택하세요. (0 : 그대로 출력, 1 : 모델링 정보만 출력) : ";
+	
+	int iOpt;
+	cin >> iOpt;
+	if (iOpt == 0) m_bUseAnimatedMesh = true;
+
+	cout << "Tangent값을 저장할까요? (0: 아니오, 1 : 네)";
+	cin >> iOpt;
+	m_bUseSaveTangent = iOpt;
+	//cout << m_bUseSaveTangent << endl;
+
+	cout << "변환이 필요한가요? (0 : 필요없음, 1 : Scale, 2 : Rotate) : ";
+	cin >> iSettingNum;
+
+	if (iSettingNum == 1)
+	{
+		float fScale;
+		cout << "스케일 비율을 적어주세요(float) : ";
+		cin >> fScale;
+
+		XMStoreFloat4x4(&xmTransform, XMMatrixScaling(fScale, fScale, fScale));
+	}
+
+	if (iSettingNum == 2)
+	{
+		XMFLOAT3 xmf3Rotate = { 0, 0, 0 };
+		cout << "X 축 회전 정도(float) : ";
+		cin >> xmf3Rotate.x;
+		cout << "Y 축 회전 정도(float) : ";
+		cin >> xmf3Rotate.y;
+		cout << "Z 축 회전 정도(float) : ";
+		cin >> xmf3Rotate.z;
+
+		XMStoreFloat4x4(&xmTransform, XMMatrixRotationRollPitchYaw(XMConvertToRadians(xmf3Rotate.x), XMConvertToRadians(xmf3Rotate.y), XMConvertToRadians(xmf3Rotate.z)));
+	}
+	cout << "강제로 중앙에 고정 시킬까요? (0 : No, 1 : Yes) : ";
+	cin >> iSettingNum;
+	m_bFixCenter = iSettingNum;
+}
+
 bool FBXParser::Initialize(const char * pstr)
 {
 	m_stName = pstr;
@@ -118,10 +165,17 @@ void FBXParser::Run()
 
 	TextureRead();
 
-	SetAnimation();
-	LoadAnimation();
-
-	if(!m_bUseAnimatedMesh) FileOutObject();
+	if (true == m_bUseAnimatedMesh)
+	{
+		cout << "True";
+		SetAnimation();
+		LoadAnimation();
+	}
+	else
+	{
+		cout << "False";
+		FileOutObject();
+	}
 }
 
 void FBXParser::Setting()
@@ -161,7 +215,7 @@ void FBXParser::Setting()
 
 	for (int i = 0; i < nObjects; ++i)
 	{
-		FbxObject * pfbxObject = m_pRootNode->GetSrcObject(i);
+		FbxObject * pfbxObject = m_pRootNode->GetChild(i);
 		cout << "NAME : " << pfbxObject->GetName() << endl;
 
 		FbxNode * pNode = m_pRootNode->GetChild(i);
@@ -173,6 +227,25 @@ void FBXParser::Setting()
 			m_obj.m_vcMeshes.push_back(Mesh());
 		}
 	}
+
+	//if (m_obj.m_vcMeshes.size() == 0)
+	//{
+	//	nObjects = m_pRootNode->GetSrcObjectCount();
+	//	for (int i = 0; i < nObjects; ++i)
+	//	{
+	//		FbxObject * pfbxObject = m_pRootNode->GetSrcObject(i);
+	//		cout << "NAME : " << pfbxObject->GetName() << endl;
+
+	//		FbxNode * pNode = m_pRootNode->GetSrc(i);
+	//		FbxNodeAttribute::EType type = (pNode->GetNodeAttribute())->GetAttributeType();
+
+	//		if (type == FbxNodeAttribute::eMesh)
+	//		{
+	//			m_obj.m_pFbxMeshes.push_back(pNode->GetMesh());
+	//			m_obj.m_vcMeshes.push_back(Mesh());
+	//		}
+	//	}
+	//}
 }
 
 void FBXParser::VertexRead()
@@ -257,16 +330,19 @@ void FBXParser::TextureRead()
 			wstring wstrName = szTexFilename;
 
 			// 디퓨즈, 노말, 스펙큘러 텍스쳐 이미지가 아니면 3번부터 박는다.
-			eTextureType eType = CheckTextureType(wstrName);
-			if (eType == eTextureType::NONE)
-			{
-				wstrNameArrays[static_cast<int>(eTextureType::SPECULAR) + ++nExtraIndex] = wstrName;
-			}
-			else
-			{
-				wstrNameArrays[static_cast<int>(eType)] = wstrName;
-			}
 			
+			if (lTextureCount > 1)
+			{
+				eTextureType eType = CheckTextureType(wstrName);
+				if (eType == eTextureType::NONE)
+				{
+					wstrNameArrays[static_cast<int>(eTextureType::SPECULAR) + ++nExtraIndex] = wstrName;
+				}
+				else
+				{
+					wstrNameArrays[static_cast<int>(eType)] = wstrName;
+				}
+			}
 		}
 	}
 	for (int lTextureIndex = 0; lTextureIndex < lTextureCount; ++lTextureIndex)
@@ -281,12 +357,13 @@ eTextureType FBXParser::CheckTextureType(const wstring & wstrName)
 {
 	auto ItCheckPoint = wstrName.end() - 1;
 	UINT offset = 0;
-	while (*ItCheckPoint != _T('_'))
+	while (*ItCheckPoint != _T('_') || ItCheckPoint == wstrName.begin() )
 	{
 		--ItCheckPoint;
 		//++offset;
 	}
-
+	if(ItCheckPoint == wstrName.begin()) 
+		return eTextureType::NONE;
 //	wstrName.find_last_of
 
 	const wstring wstrDiffuse  = _T("_diff");
@@ -352,8 +429,8 @@ eTextureType FBXParser::CheckTextureType(const wstring & wstrName)
 void FBXParser::FileOutObject()
 {
 	wstring FileName;
-	bool bUseTangent = true;//false;
 
+	FileName.assign(m_stName.begin(), m_stName.end());
 	//if (m_obj.m_vcMeshes.size() > 0)
 	//{
 	//	if (m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.x != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.y != 0 && m_obj.m_vcMeshes[0].m_vcVertexes[0].xmf3Tangent.z != 0)
@@ -361,10 +438,13 @@ void FBXParser::FileOutObject()
 	//		bUseTangent = true;
 	//	}
 	//}
-
+	for (int i = 0; i < m_obj.m_vcMeshes.size(); ++i)
+	{
+		TransformVertexes(m_obj.m_vcMeshes[i].m_vcVertexes);
+	}
 	{
 		wstring infoName;
-		//sprintf(fileName, "%ws.info", filename);
+		//sprintf(FileName, "%ws.info", m_stName);
 		infoName = FileName + _T(".info");
 		wofstream out(infoName, ios::out);
 
@@ -393,7 +473,7 @@ void FBXParser::FileOutObject()
 				out << "Pos : " << it->xmf3Pos.x << ", " << it->xmf3Pos.y << it->xmf3Pos.z << "\t";
 				out << "Tex : " << it->xmf2TexCoord.x << ", " << it->xmf2TexCoord.y << "\t";
 				out << "Normal : " << it->xmf3Normal.x << ", " << it->xmf3Normal.y << ", " << it->xmf3Normal.z << "\t";
-				if (bUseTangent) out << "Tangent : " << it->xmf3Tangent.x << ", " << it->xmf3Tangent.y << ", " << it->xmf3Tangent.z << "\t";
+				if (m_bUseSaveTangent) out << "Tangent : " << it->xmf3Tangent.x << ", " << it->xmf3Tangent.y << ", " << it->xmf3Tangent.z << "\t";
 				out << endl;
 			}
 			out << endl;
@@ -409,17 +489,18 @@ void FBXParser::FileOutObject()
 		out.close();
 	}
 	{
-		wstring binaryName = FileName + _T(".fbxcjh");
-		char name[100];
+		string binaryName = m_stName + (".fbxcjh");
+		//char name[100]
 		int index = 0;
-		for (auto it = binaryName.begin(); it != binaryName.end(); ++it)
-		{
-			name[index++] = (*it);
-		}
-		name[index] = '\0';
+		//for (auto it = binaryName.begin(); it != binaryName.end(); ++it)
+		//{
+		//	name[index++] = (*it);
+		//}
+		//name[index] = '\0';
+
 
 		FILE * bin;
-		bin = fopen(name, "wb");
+		bin = fopen(binaryName.c_str(), "wb");
 
 		UINT nTextures = m_obj.m_vcTextureNames.size();
 		fwrite(&nTextures, sizeof(UINT), 1, bin);
@@ -533,6 +614,59 @@ void FBXParser::CalculateTangent()
 	}
 }
 
+void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
+{
+	if (iSettingNum == 0) return;
+
+	XMMATRIX xmtxTransform = XMLoadFloat4x4(&xmTransform);
+	XMVECTOR xmvTemp;
+
+	XMFLOAT3 bbMax = { FLT_MIN, FLT_MIN, FLT_MIN };
+	XMFLOAT3 bbMin = { FLT_MAX, FLT_MAX, FLT_MAX };
+
+	for (auto it = vcVertexes.begin(); it != vcVertexes.end(); ++it)
+	{
+		xmvTemp = XMLoadFloat3(&it->xmf3Pos);
+		XMStoreFloat3(&it->xmf3Pos, XMVector3TransformCoord(xmvTemp, xmtxTransform));
+
+		if (m_bFixCenter)
+		{
+			bbMax.x = max(it->xmf3Pos.x, bbMax.x);
+			bbMax.y = max(it->xmf3Pos.y, bbMax.y);
+			bbMax.z = max(it->xmf3Pos.z, bbMax.z);
+
+			bbMin.x = min(it->xmf3Pos.x, bbMin.x);
+			bbMin.y = min(it->xmf3Pos.y, bbMin.y);
+			bbMin.z = min(it->xmf3Pos.z, bbMin.z);
+		}
+
+		xmvTemp = XMLoadFloat3(&it->xmf3Normal);
+		XMStoreFloat3(&it->xmf3Normal, XMVector3TransformNormal(xmvTemp, xmtxTransform));
+
+		xmvTemp = XMLoadFloat3(&it->xmf3Tangent);
+		XMStoreFloat3(&it->xmf3Tangent, XMVector3TransformNormal(xmvTemp, xmtxTransform));
+	}
+
+	if (m_bFixCenter)
+	{
+		bbMax.y = 0;
+		bbMin.y = 0;
+
+		XMVECTOR average = XMLoadFloat3(&bbMax) + XMLoadFloat3(&bbMin);
+		average *= 0.5f;
+		//average = average - XMVectorSet(0, 0, 0, 0);
+		
+		//XMFLOAT3 xmf3Offset;
+		//XMStoreFloat3(&xmf3Offset, average);
+
+		for (auto it = vcVertexes.begin(); it != vcVertexes.end(); ++it)
+		{
+			XMStoreFloat3(&it->xmf3Pos, XMLoadFloat3(&it->xmf3Pos) - average);
+		}
+	}
+
+}
+
 void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 {
 	string txtname = (".info");
@@ -558,30 +692,31 @@ void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 		}
 	}
 
-	CalculateTangent();
-	UINT nTextures = m_obj.m_vcTextureNames.size();
+	if(m_bUseSaveTangent) CalculateTangent();
+	TransformVertexes(mVertices);
+
+	UINT nTextures = min(m_obj.m_vcTextureNames.size() , 4);
 
 	char temp[20];
 	
-	wstring fbm = _T(".fbm/");
-	wstring base;
+	//wstring fbm = _T(".fbm/");
+	//wstring base;
 
 	wofstream file;
 	if (index == 0)
 	{
-		for (auto it = m_stName.begin(); it != m_stName.end(); ++it)
-			base.push_back(*it);
+		//for (auto it = m_stName.begin(); it != m_stName.end(); ++it)
+		//	base.push_back(*it);
 
-		base += fbm;
+		//base += fbm;
 
 		file.open(m_stName + "_" + string(itoa(iFileNum, temp, 10)) + txtname, ios::trunc);
 		file << "Textures : " << nTextures << endl;
-		for (auto it = m_obj.m_vcTextureNames.begin(); it != m_obj.m_vcTextureNames.end(); ++it)
+		for (int i = 0; i < nTextures; ++i) //auto it = m_obj.m_vcTextureNames.begin(); it != m_obj.m_vcTextureNames.end(); ++it)
 		{
-			for (auto baseit = base.begin(); baseit != base.end(); ++baseit)
-				file << *baseit;
-
-			for (auto wcit = it->begin(); wcit != it->end(); ++wcit)
+			//for (auto baseit = base.begin(); baseit != base.end(); ++baseit)
+			//	file << *baseit;
+			for (auto wcit = m_obj.m_vcTextureNames[i].begin(); wcit != m_obj.m_vcTextureNames[i].end(); ++wcit)
 				file << *wcit;
 			file << endl;
 		}
@@ -591,12 +726,16 @@ void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 		file.open(m_stName + "_" + string(itoa(iFileNum, temp, 10)) + txtname, ios::app);
 
 	file << "Frame : " << index << "번 째 / 정점 수 : " << vertCount << endl;
-	file << "Pow / Normal / Tex" << endl;
+	file << "Pow / Tex / Normal / Tangent" << endl;
 	for (int i = 0; i < 10; ++i)
 	{
 		file <<  mVertices[i].xmf3Pos.x << ", " << mVertices[i].xmf3Pos.y << ", " << mVertices[i].xmf3Pos.z << "\t\t";
+		file <<  mVertices[i].xmf2TexCoord.x << ", " << mVertices[i].xmf2TexCoord.y << "\t\t";
 		file <<  mVertices[i].xmf3Normal.x << ", " << mVertices[i].xmf3Normal.y << ", " << mVertices[i].xmf3Normal.z << "\t\t";
-		file <<  mVertices[i].xmf2TexCoord.x << ", " << mVertices[i].xmf2TexCoord.y << endl;
+		if (m_bUseSaveTangent) 
+			file << mVertices[i].xmf3Tangent.x << ", " << mVertices[i].xmf3Tangent.y << ", " << mVertices[i].xmf3Tangent.z << endl;
+		else
+			file << endl;
 	}
 	file << "...." << endl << endl;
 	file.close();
@@ -609,18 +748,34 @@ void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 
 		for (int i = 0; i < nTextures; ++i)
 		{
-			__int32 sz = base.size() + m_obj.m_vcTextureNames[i].size();
+			__int32 sz = m_obj.m_vcTextureNames[i].size();
+			//__int32 sz = base.size() + m_obj.m_vcTextureNames[i].size();
 			fwrite(&sz, sizeof(__int32), 1, bin);
-			fwrite(&base[0], sizeof(wchar_t), base.size(), bin);
+			//fwrite(&base[0], sizeof(wchar_t), base.size(), bin);
 			fwrite(&(m_obj.m_vcTextureNames[i][0]), sizeof(wchar_t), m_obj.m_vcTextureNames[i].size(), bin);
 		}
 	}
 	else
 		bin = fopen((m_stName + "_" + string(itoa(iFileNum, temp, 10)) + binextend).c_str(), "ab");
 
-	fwrite(&index, sizeof(__int32), 1, bin);
+	//bool bUseTanget = (mVertices[0].xmf3Tangent.x == 0 && mVertices[0].xmf3Tangent.y == 0 && mVertices[0].xmf3Tangent.z == 0);
+	__int32 nType = 0;
+	if (!m_bUseSaveTangent) nType = 1;
+
+	fwrite(&nType, sizeof(__int32), 1, bin);
 	fwrite(&vertCount, sizeof(__int32), 1, bin);
-	fwrite(&mVertices[0], sizeof(Vertex), vertCount, bin);
+	
+	if (m_bUseSaveTangent)
+		fwrite(&mVertices[0], sizeof(Vertex), vertCount, bin);
+	else
+	{
+		for (int index = 0; index < vertCount; ++index)
+		{
+			fwrite(&mVertices[index].xmf3Pos,    sizeof(XMFLOAT3), 1, bin);
+			fwrite(&mVertices[index].xmf2TexCoord, sizeof(XMFLOAT2), 1, bin);
+			fwrite(&mVertices[index].xmf3Normal, sizeof(XMFLOAT3), 1, bin);
+		}
+	}
 	fclose(bin);
 
 }
@@ -637,11 +792,7 @@ void FBXParser::LoadAnimation()
 	FbxAMatrix lGeometryOffset[20];
 	FbxAMatrix lGlobalOffPosition[20];
 
-	//for (int i = 0; i < nObjects; ++i)
-	//{
-	//	if (m_obj.m_vcMeshes[i].m_vcVertexes.size() > 0)
-	//		GetFbxSkinData(i);
-	//}
+
 	int index = 0;
 	for (FbxTime nTime = m_obj.m_vcMeshes[0].mStart; nTime <= m_obj.m_vcMeshes[0].mStop; nTime += m_tFrameTime)
 	{
@@ -1069,6 +1220,8 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 	// If normal or UV is by polygon vertex, record all vertex attributes by polygon vertex.
 	m_obj.mHasNormal = pMesh->GetElementNormalCount() > 0;
 	m_obj.mHasUV = pMesh->GetElementUVCount() > 0;
+	m_obj.mHasTangent = pMesh->GetElementTangentCount() > 0;
+
 	FbxGeometryElement::EMappingMode lNormalMappingMode = FbxGeometryElement::eNone;
 	FbxGeometryElement::EMappingMode lUVMappingMode = FbxGeometryElement::eNone;
 	if (m_obj.mHasNormal)
@@ -1150,6 +1303,10 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 		{
 			lUVElement = pMesh->GetElementUV(0);
 		}
+		if (m_obj.mHasTangent)
+		{
+			lTangentElement = pMesh->GetElementTangent(0);
+		}
 
 		for (int lIndex = 0; lIndex < lPolygonVertexCount; ++lIndex)
 		{
@@ -1182,15 +1339,17 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 				//mNormals[lIndex].z = mVertex[lIndex].normal.z;
 				//mNormals[lIndex].y = mVertex[lIndex].normal.y;
 
-				int lTangentIndex = lIndex;
-				if (lTangentElement->GetReferenceMode() == FbxLayerElement::EReferenceMode::eIndexToDirect)
+				if (m_obj.mHasTangent)
 				{
-					lTangentIndex = lTangentElement->GetIndexArray().GetAt(lIndex);
+					int lTangentIndex = lIndex;
+					if (lTangentElement->GetReferenceMode() == FbxLayerElement::EReferenceMode::eIndexToDirect)
+					{
+						lTangentIndex = lTangentElement->GetIndexArray().GetAt(lIndex);
+					}
+					lCurrentTangent = lTangentElement->GetDirectArray().GetAt(lTangentIndex);
+
+					SetFbxFloatToXmFloat(tempVertex.xmf3Tangent, lCurrentTangent);
 				}
-				lCurrentTangent = lTangentElement->GetDirectArray().GetAt(lTangentIndex);
-
-				SetFbxFloatToXmFloat(tempVertex.xmf3Tangent, lCurrentTangent);
-
 				//tempVertex.xmf3Tangent.x = static_cast<float>(lCurrentTangent[0]);
 				//tempVertex.xmf3Tangent.z = static_cast<float>(lCurrentTangent[1]);
 				//tempVertex.xmf3Tangent.y = static_cast<float>(lCurrentTangent[2]);
@@ -1665,6 +1824,7 @@ void FBXParser::AnimateNode(Mesh * pMesh, FbxNode * pNode, FbxTime & pTime, FbxA
 		}
 		else if (lNodeAttribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
 		{
+			m_bUseAnimatedMesh = false;
 			cout << "이것은 Skeleton이다!!";
 			FbxMesh * pFbxMesh = pNode->GetMesh();
 			if (pFbxMesh)

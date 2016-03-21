@@ -103,6 +103,7 @@ struct Object
 
 	bool mAllByControlPoint;
 	bool mHasNormal;
+	bool mHasTangent;
 	bool mHasUV;
 
 	int m_nVertices;
@@ -118,6 +119,7 @@ struct Object
 		mHasUV = true;
 		mHasNormal = true;
 		mAllByControlPoint = true;
+		mHasTangent = false;
 	}
 
 	~Object()
@@ -146,7 +148,12 @@ enum eTextureType
 
 class FBXParser
 {
+	int iSettingNum;
+
+	XMFLOAT4X4 xmTransform;
 	bool m_bUseAnimatedMesh;
+	bool m_bUseSaveTangent;
+	bool m_bFixCenter;
 
 	string        m_stName;
 	FbxManager  * m_pMgr;
@@ -176,6 +183,7 @@ public:
 
 
 public:
+	void SetOption();
 	bool Initialize(const char * pstr);
 	void Run();
 
@@ -186,6 +194,7 @@ public:
 
 	void FileOutObject();
 	void CalculateTangent();
+	void TransformVertexes(vector<Vertex>& vcVertexes);
 	void FileOutAnimatedMeshes(int iFileNum, int index);
 
 	void SetAnimation();
