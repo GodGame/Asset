@@ -84,19 +84,25 @@ void FBXParser::SetOption()
 {
 	int inum;
 
-	XMStoreFloat4x4(&xmTransform, XMMatrixIdentity());
 	cout << "옵션 선택하세요. (0 : 그대로 출력, 1 : 모델링 정보만 출력) : ";
 	
 	int iOpt;
 	cin >> iOpt;
 	if (iOpt == 0) m_bUseAnimatedMesh = true;
 
+	if (m_bUseAnimatedMesh)
+	{
+		cout << "애니매이션 축소 비율을 적어주세요 (0 : 기존, 0.5 : 1.5배, 1: 2배...)  : ";
+		cin >> fAnimatedFrameChange;
+	}
+
 	cout << "Tangent값을 저장할까요? (0: 아니오, 1 : 네)";
 	cin >> iOpt;
 	m_bUseSaveTangent = iOpt;
 	//cout << m_bUseSaveTangent << endl;
 
-	cout << "변환이 필요한가요? (0 : 필요없음, 1 : Scale, 2 : Rotate) : ";
+	XMStoreFloat4x4(&xmTransform, XMMatrixIdentity());
+	cout << "변환이 필요한가요? (0 : 필요없음, 1 : Scale, 2 : Rotate) <y축 고정 필요하면 scale 1.0> : ";
 	cin >> iSettingNum;
 
 	if (iSettingNum == 1)
@@ -121,8 +127,8 @@ void FBXParser::SetOption()
 		XMStoreFloat4x4(&xmTransform, XMMatrixRotationRollPitchYaw(XMConvertToRadians(xmf3Rotate.x), XMConvertToRadians(xmf3Rotate.y), XMConvertToRadians(xmf3Rotate.z)));
 	}
 	cout << "강제로 중앙에 고정 시킬까요? (0 : No, 1 : Yes) : ";
-	cin >> iSettingNum;
-	m_bFixCenter = iSettingNum;
+	cin >> m_bFixCenter;
+	//m_bFixCenter = iSettingNum;
 }
 
 bool FBXParser::Initialize(const char * pstr)
@@ -629,8 +635,8 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 		xmvTemp = XMLoadFloat3(&it->xmf3Pos);
 		XMStoreFloat3(&it->xmf3Pos, XMVector3TransformCoord(xmvTemp, xmtxTransform));
 
-		if (m_bFixCenter)
-		{
+		//if (m_bFixCenter)
+		//{
 			bbMax.x = max(it->xmf3Pos.x, bbMax.x);
 			bbMax.y = max(it->xmf3Pos.y, bbMax.y);
 			bbMax.z = max(it->xmf3Pos.z, bbMax.z);
@@ -638,7 +644,7 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 			bbMin.x = min(it->xmf3Pos.x, bbMin.x);
 			bbMin.y = min(it->xmf3Pos.y, bbMin.y);
 			bbMin.z = min(it->xmf3Pos.z, bbMin.z);
-		}
+		//}
 
 		xmvTemp = XMLoadFloat3(&it->xmf3Normal);
 		XMStoreFloat3(&it->xmf3Normal, XMVector3TransformNormal(xmvTemp, xmtxTransform));
@@ -647,13 +653,27 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 		XMStoreFloat3(&it->xmf3Tangent, XMVector3TransformNormal(xmvTemp, xmtxTransform));
 	}
 
+	float fDeltaY = bbMin.y;
+	cout << "Min : " << fDeltaY;
+	if (fDeltaY < -5.0f)
+	{
+		XMVECTOR delta = XMVectorSet(0, fDeltaY, 0, 0);
+
+		for (auto it = vcVertexes.begin(); it != vcVertexes.end(); ++it)
+		{
+			XMStoreFloat3(&it->xmf3Pos, XMLoadFloat3(&it->xmf3Pos) - delta);
+		}
+	}
+
 	if (m_bFixCenter)
 	{
 		bbMax.y = 0;
 		bbMin.y = 0;
 
 		XMVECTOR average = XMLoadFloat3(&bbMax) + XMLoadFloat3(&bbMin);
-		average *= 0.5f;
+		average *= 0.7f;
+		//average *= 0.5f;
+
 		//average = average - XMVectorSet(0, 0, 0, 0);
 		
 		//XMFLOAT3 xmf3Offset;
@@ -792,9 +812,9 @@ void FBXParser::LoadAnimation()
 	FbxAMatrix lGeometryOffset[20];
 	FbxAMatrix lGlobalOffPosition[20];
 
-
+	float fFrameIndex = 0.0f;
 	int index = 0;
-	for (FbxTime nTime = m_obj.m_vcMeshes[0].mStart; nTime <= m_obj.m_vcMeshes[0].mStop; nTime += m_tFrameTime)
+	for (FbxTime nTime = m_obj.m_vcMeshes[0].mStart; nTime <= m_obj.m_vcMeshes[0].mStop; )//nTime += m_tFrameTime)
 	{
 		//cout << "Time : " << nTime.GetMilliSeconds() << endl;
 
@@ -821,6 +841,13 @@ void FBXParser::LoadAnimation()
 		//CreateVBBuffer(pd3dDevice, index);
 		//CalculateTangent();
 		if (m_bUseAnimatedMesh) FileOutAnimatedMeshes(nAniNum, index++);
+
+		fFrameIndex += (1.0f + fAnimatedFrameChange);
+		int nFrames = static_cast<int>(fFrameIndex);
+		for (int j = 0; j < nFrames; ++j)
+			nTime += m_tFrameTime;
+
+		fFrameIndex -= nFrames;
 	}
 
 	//Init(pd3dDevice);

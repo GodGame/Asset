@@ -148,6 +148,7 @@ enum eTextureType
 
 class FBXParser
 {
+	float fAnimatedFrameChange;
 	int iSettingNum;
 
 	XMFLOAT4X4 xmTransform;
