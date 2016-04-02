@@ -102,7 +102,7 @@ void FBXParser::SetOption()
 	//cout << m_bUseSaveTangent << endl;
 
 	XMStoreFloat4x4(&xmTransform, XMMatrixIdentity());
-	cout << "변환이 필요한가요? (0 : 필요없음, 1 : Scale, 2 : Rotate) <y축 고정 필요하면 scale 1.0> : ";
+	cout << "변환이 필요한가요? (0 : 필요없음, 1 : Scale, 2 : Rotate) : ";
 	cin >> iSettingNum;
 
 	if (iSettingNum == 1)
@@ -128,6 +128,9 @@ void FBXParser::SetOption()
 	}
 	cout << "강제로 중앙에 고정 시킬까요? (0 : No, 1 : Yes) : ";
 	cin >> m_bFixCenter;
+
+	cout << "Y값을 0 기준으로 고정 시킬까요? (0 : No, 1 : Yes) : ";
+	cin >> m_bFixBottom;
 	//m_bFixCenter = iSettingNum;
 }
 
@@ -653,15 +656,18 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 		XMStoreFloat3(&it->xmf3Tangent, XMVector3TransformNormal(xmvTemp, xmtxTransform));
 	}
 
-	float fDeltaY = bbMin.y;
-	cout << "Min : " << fDeltaY;
-	if (fDeltaY < -5.0f)
+	if (m_bFixBottom)
 	{
-		XMVECTOR delta = XMVectorSet(0, fDeltaY, 0, 0);
-
-		for (auto it = vcVertexes.begin(); it != vcVertexes.end(); ++it)
+		float fDeltaY = bbMin.y;
+		cout << "Min : " << fDeltaY;
+		if (fDeltaY < -5.0f)
 		{
-			XMStoreFloat3(&it->xmf3Pos, XMLoadFloat3(&it->xmf3Pos) - delta);
+			XMVECTOR delta = XMVectorSet(0, fDeltaY, 0, 0);
+
+			for (auto it = vcVertexes.begin(); it != vcVertexes.end(); ++it)
+			{
+				XMStoreFloat3(&it->xmf3Pos, XMLoadFloat3(&it->xmf3Pos) - delta);
+			}
 		}
 	}
 
@@ -671,8 +677,8 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 		bbMin.y = 0;
 
 		XMVECTOR average = XMLoadFloat3(&bbMax) + XMLoadFloat3(&bbMin);
-		average *= 0.7f;
-		//average *= 0.5f;
+		//average *= 0.7f;
+		average *= 0.5f;
 
 		//average = average - XMVectorSet(0, 0, 0, 0);
 		

@@ -155,6 +155,7 @@ class FBXParser
 	bool m_bUseAnimatedMesh;
 	bool m_bUseSaveTangent;
 	bool m_bFixCenter;
+	bool m_bFixBottom;
 
 	string        m_stName;
 	FbxManager  * m_pMgr;
