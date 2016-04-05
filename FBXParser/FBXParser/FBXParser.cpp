@@ -131,6 +131,7 @@ void FBXParser::SetOption()
 
 	cout << "Y값을 0 기준으로 고정 시킬까요? (0 : No, 1 : Yes) : ";
 	cin >> m_bFixBottom;
+	if (m_bFixBottom) iSettingNum = 3;
 	//m_bFixCenter = iSettingNum;
 }
 
@@ -660,7 +661,7 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 	{
 		float fDeltaY = bbMin.y;
 		cout << "Min : " << fDeltaY;
-		if (fDeltaY < -5.0f)
+		//if (fDeltaY < -5.0f)
 		{
 			XMVECTOR delta = XMVectorSet(0, fDeltaY, 0, 0);
 
@@ -677,8 +678,8 @@ void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
 		bbMin.y = 0;
 
 		XMVECTOR average = XMLoadFloat3(&bbMax) + XMLoadFloat3(&bbMin);
-		//average *= 0.7f;
 		average *= 0.5f;
+		//average *= 0.65f;
 
 		//average = average - XMVectorSet(0, 0, 0, 0);
 		
