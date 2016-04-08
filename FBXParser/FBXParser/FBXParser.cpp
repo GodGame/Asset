@@ -102,30 +102,58 @@ void FBXParser::SetOption()
 	//cout << m_bUseSaveTangent << endl;
 
 	XMStoreFloat4x4(&xmTransform, XMMatrixIdentity());
-	cout << "변환이 필요한가요? (0 : 필요없음, 1 : Scale, 2 : Rotate) : ";
-	cin >> iSettingNum;
 
-	if (iSettingNum == 1)
+	int nChanges = 0;
+
+	XMMATRIX S = XMMatrixIdentity();
+	XMMATRIX R = XMMatrixIdentity();
+	XMMATRIX T = XMMatrixIdentity();
+	while (true)
 	{
-		float fScale;
-		cout << "스케일 비율을 적어주세요(float) : ";
-		cin >> fScale;
+		cout << "변환이 필요한가요? (0 : 종료, 1 : Scale, 2 : Rotate, 3 : Translate) : ";
+		cin >> iSettingNum;
+		if (iSettingNum == 0) break;
 
-		XMStoreFloat4x4(&xmTransform, XMMatrixScaling(fScale, fScale, fScale));
+		if (iSettingNum == 1)
+		{
+			float fScale;
+			cout << "스케일 비율을 적어주세요(float) : ";
+			cin >> fScale;
+
+			S = XMMatrixScaling(fScale, fScale, fScale);
+		}
+
+		if (iSettingNum == 2)
+		{
+			XMFLOAT3 xmf3Rotate = { 0, 0, 0 };
+			cout << "X 축 회전 정도(float) : ";
+			cin >> xmf3Rotate.x;
+			cout << "Y 축 회전 정도(float) : ";
+			cin >> xmf3Rotate.y;
+			cout << "Z 축 회전 정도(float) : ";
+			cin >> xmf3Rotate.z;
+
+			R = XMMatrixRotationRollPitchYaw(XMConvertToRadians(xmf3Rotate.x), XMConvertToRadians(xmf3Rotate.y), XMConvertToRadians(xmf3Rotate.z));
+		}
+
+		if (iSettingNum == 3)
+		{
+			XMFLOAT3 xmf3Trans = { 0, 0, 0 };
+			cout << "X 축 이동 정도(float) : ";
+			cin >> xmf3Trans.x;
+			cout << "Y 축 이동 정도(float) : ";
+			cin >> xmf3Trans.y;
+			cout << "Z 축 이동 정도(float) : ";
+			cin >> xmf3Trans.z;
+
+			T = XMMatrixTranslation(xmf3Trans.x, xmf3Trans.y, xmf3Trans.z);
+		}
+
+		nChanges++;
 	}
+	iSettingNum = nChanges;
+	if (iSettingNum > 0) XMStoreFloat4x4(&xmTransform, (S * R * T));
 
-	if (iSettingNum == 2)
-	{
-		XMFLOAT3 xmf3Rotate = { 0, 0, 0 };
-		cout << "X 축 회전 정도(float) : ";
-		cin >> xmf3Rotate.x;
-		cout << "Y 축 회전 정도(float) : ";
-		cin >> xmf3Rotate.y;
-		cout << "Z 축 회전 정도(float) : ";
-		cin >> xmf3Rotate.z;
-
-		XMStoreFloat4x4(&xmTransform, XMMatrixRotationRollPitchYaw(XMConvertToRadians(xmf3Rotate.x), XMConvertToRadians(xmf3Rotate.y), XMConvertToRadians(xmf3Rotate.z)));
-	}
 	cout << "강제로 중앙에 고정 시킬까요? (0 : No, 1 : Yes) : ";
 	cin >> m_bFixCenter;
 
@@ -184,6 +212,7 @@ void FBXParser::Run()
 	else
 	{
 		cout << "False";
+		//TransformVertexes(m_);
 		FileOutObject();
 	}
 }
@@ -341,12 +370,12 @@ void FBXParser::TextureRead()
 
 			// 디퓨즈, 노말, 스펙큘러 텍스쳐 이미지가 아니면 3번부터 박는다.
 			
-			if (lTextureCount > 1)
+			if (lTextureCount > 1 && wstrName.size() > 0)
 			{
 				eTextureType eType = CheckTextureType(wstrName);
 				if (eType == eTextureType::NONE)
 				{
-					wstrNameArrays[static_cast<int>(eTextureType::SPECULAR) + ++nExtraIndex] = wstrName;
+					wstrNameArrays[min(lTextureCount - 1, (static_cast<int>(eTextureType::SPECULAR) + ++nExtraIndex))] = wstrName;
 				}
 				else
 				{
@@ -370,6 +399,8 @@ eTextureType FBXParser::CheckTextureType(const wstring & wstrName)
 	while (*ItCheckPoint != _T('_') || ItCheckPoint == wstrName.begin() )
 	{
 		--ItCheckPoint;
+		if (ItCheckPoint == wstrName.begin()) 
+			return eTextureType::NONE;
 		//++offset;
 	}
 	if(ItCheckPoint == wstrName.begin()) 
@@ -512,6 +543,7 @@ void FBXParser::FileOutObject()
 		FILE * bin;
 		bin = fopen(binaryName.c_str(), "wb");
 
+#ifdef _FBXCJH_USE_TX_READ
 		UINT nTextures = m_obj.m_vcTextureNames.size();
 		fwrite(&nTextures, sizeof(UINT), 1, bin);
 
@@ -521,7 +553,7 @@ void FBXParser::FileOutObject()
 			fwrite(&sz, sizeof(UINT), 1, bin);
 			fwrite(&(m_obj.m_vcTextureNames[i][0]), sizeof(wchar_t), m_obj.m_vcTextureNames[i].size(), bin);
 		}
-
+#endif
 		UINT nMeshes = m_obj.m_vcMeshes.size();
 		fwrite(&nMeshes, sizeof(UINT), 1, bin);
 
