@@ -24,6 +24,11 @@ ostream& operator<<(ostream& os, XMFLOAT2 & vt)
 	return os;
 }
 
+bool operator==(XMFLOAT3 & v1, XMFLOAT3 & v2)
+{
+	return !((v1.x != v2.x) || (v1.y != v2.y) || (v1.z != v2.z));
+}
+
 
 FBXParser::FBXParser()
 {
@@ -333,7 +338,11 @@ void FBXParser::VertexRead()
 void FBXParser::TextureRead()
 {
 	const int lTextureCount = m_pScene->GetTextureCount();
-	wstring * wstrNameArrays = new wstring[lTextureCount];
+	//wstring * wstrNameArrays = new wstring[lTextureCount];
+	map<int, wstring> wstrNameArrays;
+	eTextureType * typeArray = new eTextureType[lTextureCount];
+	vector<wstring> wstrTempArray;
+
 	UINT nExtraIndex = 0;
 
 	for (int lTextureIndex = 0; lTextureIndex < lTextureCount; ++lTextureIndex)
@@ -369,26 +378,29 @@ void FBXParser::TextureRead()
 			wstring wstrName = szTexFilename;
 
 			// 디퓨즈, 노말, 스펙큘러 텍스쳐 이미지가 아니면 3번부터 박는다.
-			
+
 			if (lTextureCount > 1 && wstrName.size() > 0)
 			{
 				eTextureType eType = CheckTextureType(wstrName);
 				if (eType == eTextureType::NONE)
 				{
-					wstrNameArrays[min(lTextureCount - 1, (static_cast<int>(eTextureType::SPECULAR) + ++nExtraIndex))] = wstrName;
+					wstrNameArrays[min(lTextureCount - 1, (static_cast<int>(eTextureType::ALL) - 1 + ++nExtraIndex))] = wstrName;
 				}
 				else
 				{
 					wstrNameArrays[static_cast<int>(eType)] = wstrName;
 				}
 			}
+			//typeArray[lTextureIndex] = CheckTextureType(wstrName);
 		}
 	}
-	for (int lTextureIndex = 0; lTextureIndex < lTextureCount; ++lTextureIndex)
+
+	for (auto name : wstrNameArrays)
 	{
-		m_obj.m_vcTextureNames.push_back(wstrNameArrays[lTextureIndex]);
+		m_obj.m_vcTextureNames.push_back(name.second);
 	}
-	delete[] wstrNameArrays;
+	//delete[] wstrNameArrays;
+	delete[] typeArray;
 }
 
 
@@ -410,9 +422,9 @@ eTextureType FBXParser::CheckTextureType(const wstring & wstrName)
 	const wstring wstrDiffuse  = _T("_diff");
 	const wstring wstrNormal   = _T("_norm");
 	const wstring wstrSpecular = _T("_spec");
-	//const wstring wstrGlow	   = _T("_glow");
+	const wstring wstrGlow	   = _T("_glow");
 
-	bool bHash[3] = { true, true, true };
+	bool bHash[eTextureType::ALL] = { true, true, true, true };
 
 	auto it = ItCheckPoint;
 	for (int i = 0; i < 5; ++i, ++it, ++offset)//*it != _T('.'); ++it, ++offset)
@@ -420,10 +432,10 @@ eTextureType FBXParser::CheckTextureType(const wstring & wstrName)
 		if (bHash[eTextureType::DIFFUSE]  && *it != *(wstrDiffuse.begin()  + offset)) bHash[eTextureType::DIFFUSE]  = false;
 		if (bHash[eTextureType::NORMAL]   && *it != *(wstrNormal.begin()   + offset)) bHash[eTextureType::NORMAL]   = false;
 		if (bHash[eTextureType::SPECULAR] && *it != *(wstrSpecular.begin() + offset)) bHash[eTextureType::SPECULAR] = false;
-//		if (bHash[eTextureType::GLOW]     && *it != *(wstrGlow.begin()     + offset)) bHash[eTextureType::GLOW]    = false;
+		if (bHash[eTextureType::GLOW]     && *it != *(wstrGlow.begin()     + offset)) bHash[eTextureType::GLOW]     = false;
 	}
 
-	for (int i = 0; i < 3; ++i)
+	for (int i = 0; i < eTextureType::ALL; ++i)
 		if (bHash[i]) 
 			return eTextureType(i);
 
@@ -577,25 +589,29 @@ void FBXParser::FileOutObject()
 	}
 }
 
-void FBXParser::CalculateTangent()
+void FBXParser::CalculateTangent(vector<Vertex>& VectexList)
 {
 	float vecX, vecY, vecZ, tcU1, tcU2, tcV1, tcV2;
 	XMVECTOR edge1, edge2;
 	XMFLOAT3 tangent[3], normal[3];
 
-	int CalIndex[] = { 1, 2, 1, 2, 1, 2 }; //{ +1, +2, +1, -1, -2, -1 };
-	UINT offsetLeft3 = 0, offset = 0;
+	int CalIndex[] = { 1, 2, 1, 2, 1, 2 };//
+	UINT offsetLeft3 = 0, offset = 0; 
 
-	UINT nVertices = mVertices.size();
+	UINT nVertices = VectexList.size();
+	int iFace = 0;
+
+	vector<pair<int, XMFLOAT3>> TangentList;
+
 	for (int i = 0; i < nVertices; ++i)
 	{
 		offset = (i % 3);
 		offsetLeft3 = offset * 2;
 		tangent[offset] = { 0, 0, 0 };
 
-		Vertex * pNearVertexes[3] = { &mVertices[i],
-			&mVertices[(i + CalIndex[offsetLeft3 + 1]) % nVertices],
-			&mVertices[(i + CalIndex[offsetLeft3 + 2]) % nVertices] };
+		Vertex * pNearVertexes[3] = { &VectexList[i],
+			&VectexList[(i + CalIndex[offsetLeft3 + 1]) % nVertices],
+			&VectexList[(i + CalIndex[offsetLeft3 + 2]) % nVertices] };
 
 		//Get the vector describing one edge of our triangle (edge 0,2)
 		vecX = pNearVertexes[0]->xmf3Pos.x - pNearVertexes[2]->xmf3Pos.x;
@@ -630,7 +646,9 @@ void FBXParser::CalculateTangent()
 		//pDataMesh->m_vcVertexes[i].xmf3Tangent = tangent[offset];
 
 		//		XMStoreFloat3(&tangent, XMVector3Normalize(XMLoadFloat3(&tangent)));
-
+		TangentList.push_back(pair<int, XMFLOAT3>(i, tangent[offset]));
+#define TANGENT_ALL_AVERAGE
+#ifndef TANGENT_ALL_AVERAGE
 		if (i % 3 == 2)
 		{
 			XMVECTOR tangentSum = XMLoadFloat3(&tangent[offset]);
@@ -638,9 +656,12 @@ void FBXParser::CalculateTangent()
 			tangentSum += XMLoadFloat3(&tangent[offset - 2]);
 			tangentSum = XMVector3Normalize(tangentSum);
 
-			XMStoreFloat3(&mVertices[i].xmf3Tangent, tangentSum);
-			XMStoreFloat3(&mVertices[i - 1].xmf3Tangent, tangentSum);
-			XMStoreFloat3(&mVertices[i - 2].xmf3Tangent, tangentSum);
+			if ((iFace++) % 2 == 1) tangentSum = -tangentSum;
+
+			XMStoreFloat3(&VectexList[i].xmf3Tangent, tangentSum);
+			XMStoreFloat3(&VectexList[i - 1].xmf3Tangent, tangentSum);
+			XMStoreFloat3(&VectexList[i - 2].xmf3Tangent, tangentSum);
+
 
 			//XMVECTOR normalSum = XMLoadFloat3(&normal[offset]);
 			//normalSum += XMLoadFloat3(&normal[offset - 1]);
@@ -651,9 +672,50 @@ void FBXParser::CalculateTangent()
 			//XMStoreFloat3(&pDataMesh->m_vcVertexes[i - 1].xmf3Normal, normalSum);
 			//XMStoreFloat3(&pDataMesh->m_vcVertexes[i - 2].xmf3Normal, normalSum);
 		}
-
 		//tempTangent.push_back(tangent);
 	}
+#else
+	}
+	while (true)
+	{
+		if (TangentList.empty()) break;
+
+		vector<pair<int, XMFLOAT3>> average;
+
+		auto it = TangentList.end() -1;
+		int index = it->first;
+		if (index == -1)
+		{
+			TangentList.pop_back();
+			continue;
+		}
+		XMFLOAT3 TargetPos = VectexList[index].xmf3Pos;
+
+		XMFLOAT3 averageTangent{ 0, 0, 0 };
+		for (int i = 0; i < TangentList.size(); ++i) // 탄젠트 리스트 길이만큼만 검사한다.
+		{
+			if (TargetPos == VectexList[i].xmf3Pos)
+			{
+				average.push_back(TangentList[i]);
+				averageTangent.x += TangentList[i].second.x;
+				averageTangent.y += TangentList[i].second.y;
+				averageTangent.z += TangentList[i].second.z;
+				TangentList[i].first = -1;
+			}
+		}
+		
+		XMVECTOR Average = XMLoadFloat3(&averageTangent);
+		Average /= average.size();
+		Average = XMVector3Normalize(Average);
+		XMStoreFloat3(&averageTangent, Average);
+		// 평균값 적용
+		for (auto Tangent : average)
+		{
+			VectexList[Tangent.first].xmf3Tangent = averageTangent;
+			//TangentList[Tangent.first].first = -1;
+		}
+	}
+#endif
 }
 
 void FBXParser::TransformVertexes(vector<Vertex>& vcVertexes)
@@ -747,11 +809,11 @@ void FBXParser::FileOutAnimatedMeshes(int iFileNum, int index)
 
 		for (UINT j = 0; j < nCount; ++j)
 		{
-			mVertices[vertCount++].operator=(m_obj.m_vcMeshes[i].m_vcVertexes[j]);
+			mVertices[vertCount++] = (m_obj.m_vcMeshes[i].m_vcVertexes[j]);
 		}
 	}
 
-	if(m_bUseSaveTangent) CalculateTangent();
+	if(m_bUseSaveTangent) CalculateTangent(mVertices);
 	TransformVertexes(mVertices);
 
 	UINT nTextures = min(m_obj.m_vcTextureNames.size() , 4);
@@ -1545,7 +1607,8 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 //	//	pDataMesh->m_vcVertexes[i].xmf3Tangent = lTangentElement->GetDirectArray().GetAt(i);
 //		SetFbxFloatToXmFloat(pDataMesh->m_vcVertexes[i].xmf3Tangent, lTangentElement->GetDirectArray().GetAt(i));
 //	}
-
+	CalculateTangent(pDataMesh->m_vcVertexes);
+#if 0
 	float vecX, vecY, vecZ, tcU1, tcU2, tcV1, tcV2;
 	XMVECTOR edge1, edge2;
 	XMFLOAT3 tangent[3], normal[3];
@@ -1621,6 +1684,7 @@ void FBXParser::MeshRead(FbxMesh * pFbxMesh, Mesh * pCustomMesh)
 
 		//tempTangent.push_back(tangent);
 	}
+#endif
 }
 
 void FBXParser::MeshRead(int iIndex)

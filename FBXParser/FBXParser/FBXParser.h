@@ -6,7 +6,7 @@ ostream& operator<<(ostream& os, FbxDouble4 & vt);
 ostream& operator<<(ostream& os, FbxVector4 & vt);
 ostream& operator<<(ostream& os, XMFLOAT3 & vt);
 ostream& operator<<(ostream& os, XMFLOAT2 & vt);
-
+bool operator==(XMFLOAT3 & v1, XMFLOAT3 & v2);
 
 struct Vertex
 {
@@ -143,7 +143,8 @@ enum eTextureType
 	DIFFUSE,
 	NORMAL,
 	SPECULAR,
-	GLOW
+	GLOW,
+	ALL
 };
 
 class FBXParser
@@ -195,7 +196,7 @@ public:
 	eTextureType CheckTextureType(const wstring & wstrName);
 
 	void FileOutObject();
-	void CalculateTangent();
+	void CalculateTangent(vector<Vertex>& VectexList);
 	void TransformVertexes(vector<Vertex>& vcVertexes);
 	void FileOutAnimatedMeshes(int iFileNum, int index);
 
